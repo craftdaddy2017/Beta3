@@ -261,6 +261,8 @@ const App: React.FC = () => {
       <div className={`fixed inset-y-0 left-0 z-50 transform lg:relative lg:translate-x-0 transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} no-print`}>
         <Sidebar 
           activeTab={activeTab} 
+          logoUrl={userProfile.logoUrl}
+          companyName={userProfile.companyName}
           onTabChange={(tab) => {
             setActiveTab(tab);
             setEditingInvoice(null);

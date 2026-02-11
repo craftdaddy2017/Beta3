@@ -1,14 +1,15 @@
 
 import React from 'react';
-import { CRAFT_DADDY_LOGO_URL } from '../assets/brand';
 
 interface SidebarProps {
   activeTab: string;
   onTabChange: (tab: any) => void;
   onClose?: () => void;
+  logoUrl?: string;
+  companyName?: string;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, onClose }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, onClose, logoUrl, companyName }) => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
     { id: 'invoices', label: 'Invoices', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
@@ -21,10 +22,16 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, onClose }) =>
   return (
     <aside className="w-72 lg:w-64 h-full bg-[#5c2c90] text-white flex flex-col no-print border-r border-white/10 shadow-2xl lg:shadow-none">
       <div className="p-6 flex items-center justify-between">
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1 w-full overflow-hidden">
           <div className="flex items-center gap-3">
-            <div className="bg-white p-1 rounded-lg">
-               <img src={CRAFT_DADDY_LOGO_URL} className="h-10 w-auto object-contain" alt="Craft Daddy Logo" />
+            <div className="bg-white p-1 rounded-lg flex-shrink-0">
+               {logoUrl ? (
+                 <img src={logoUrl} className="h-10 w-auto object-contain max-w-[150px]" alt={`${companyName} Logo`} />
+               ) : (
+                 <div className="h-10 w-10 bg-indigo-100 rounded flex items-center justify-center text-indigo-600 font-black">
+                   {companyName?.charAt(0) || 'B'}
+                 </div>
+               )}
             </div>
           </div>
         </div>
@@ -57,9 +64,9 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, onClose }) =>
       <div className="p-6 mt-auto">
         <div className="p-4 bg-white/10 rounded-2xl border border-white/5">
           <div className="flex items-center gap-3">
-            <img src="https://picsum.photos/40/40" className="w-10 h-10 rounded-full border border-white/20" alt="Avatar" />
+            <img src={logoUrl || "https://picsum.photos/40/40"} className="w-10 h-10 rounded-full border border-white/20 object-cover bg-white" alt="Avatar" />
             <div className="text-sm overflow-hidden">
-              <p className="font-bold text-white truncate">Administrator</p>
+              <p className="font-bold text-white truncate">{companyName || 'Administrator'}</p>
               <p className="text-white/60 text-[10px] uppercase font-black tracking-widest truncate">Enterprise Panel</p>
             </div>
           </div>
