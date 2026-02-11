@@ -1,13 +1,23 @@
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 
 const mountApp = () => {
-  const rootElement = document.getElementById('root');
-  if (!rootElement) {
-    console.error("Critical: Root element '#root' not found in the DOM.");
-    return;
+  // Load Cloud Config from persistence if it exists
+  const configStr = localStorage.getItem('SUPABASE_CONFIG');
+  if (configStr) {
+    try {
+      const config = JSON.parse(configStr);
+      (window as any).SUPABASE_URL = config.url;
+      (window as any).SUPABASE_ANON_KEY = config.key;
+    } catch (e) {
+      console.error("Invalid cloud config found");
+    }
   }
+
+  const rootElement = document.getElementById('root');
+  if (!rootElement) return;
 
   try {
     const root = ReactDOM.createRoot(rootElement);
@@ -18,15 +28,9 @@ const mountApp = () => {
     );
   } catch (error) {
     console.error("Failed to render React application:", error);
-    const errorDisplay = document.getElementById('error-display');
-    if (errorDisplay) {
-        errorDisplay.style.display = 'block';
-        errorDisplay.innerText = "React Render Error: " + (error instanceof Error ? error.message : String(error));
-    }
   }
 };
 
-// Ensure DOM is fully loaded before mounting
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', mountApp);
 } else {

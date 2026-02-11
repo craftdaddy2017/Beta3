@@ -7,9 +7,10 @@ interface SidebarProps {
   onClose?: () => void;
   logoUrl?: string;
   companyName?: string;
+  isCloudEnabled?: boolean;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, onClose, logoUrl, companyName }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, onClose, logoUrl, companyName, isCloudEnabled }) => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
     { id: 'invoices', label: 'Invoices', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
@@ -32,6 +33,13 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, onClose, logo
                    {companyName?.charAt(0) || 'B'}
                  </div>
                )}
+            </div>
+            <div className="flex flex-col">
+               <span className="text-[10px] font-black uppercase tracking-widest text-white/50">Storage</span>
+               <div className="flex items-center gap-1.5">
+                  <div className={`w-2 h-2 rounded-full animate-pulse ${isCloudEnabled ? 'bg-emerald-400' : 'bg-orange-400'}`}></div>
+                  <span className="text-[10px] font-bold">{isCloudEnabled ? 'Cloud Sync' : 'Local Only'}</span>
+               </div>
             </div>
           </div>
         </div>
