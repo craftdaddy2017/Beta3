@@ -18,67 +18,36 @@ import QuotationList from './components/QuotationList';
 import LeadBoard from './components/LeadBoard';
 import ClientList from './components/ClientList';
 import Sidebar from './components/Sidebar';
+import Settings from './components/Settings';
 
 // Storage Keys
 const STORAGE_KEYS = {
   INVOICES: 'bos_cloud_invoices',
   QUOTATIONS: 'bos_cloud_quotations',
   LEADS: 'bos_cloud_leads',
-  CLIENTS: 'bos_cloud_clients'
+  CLIENTS: 'bos_cloud_clients',
+  PROFILE: 'bos_cloud_user_profile'
 };
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'invoices' | 'quotations' | 'leads' | 'clients'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'invoices' | 'quotations' | 'leads' | 'clients' | 'settings'>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   // --- State Initialization with LocalStorage ---
   
+  const [userProfile, setUserProfile] = useState<UserBusinessProfile>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.PROFILE);
+    return saved ? JSON.parse(saved) : INITIAL_USER_PROFILE;
+  });
+
   const [invoices, setInvoices] = useState<Invoice[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.INVOICES);
-    return saved ? JSON.parse(saved) : [
-      {
-        id: 'inv-1',
-        number: 'INV-2024-001',
-        date: '2024-05-10',
-        dueDate: '2024-05-25',
-        status: InvoiceStatus.PAID,
-        clientId: 'client-1',
-        items: [
-          { id: 'item-1', description: 'Web Development Services', hsn: '9983', qty: 1, rate: 45000, taxRate: 18 }
-        ],
-        placeOfSupply: 'Delhi (07)'
-      },
-      {
-        id: 'inv-2',
-        number: 'INV-2024-002',
-        date: '2024-05-12',
-        dueDate: '2024-05-27',
-        status: InvoiceStatus.SENT,
-        clientId: 'client-2',
-        items: [
-          { id: 'item-2', description: 'Logo Design & Branding', hsn: '9982', qty: 1, rate: 12500, taxRate: 12 }
-        ],
-        placeOfSupply: 'Delhi (07)'
-      }
-    ];
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [quotations, setQuotations] = useState<Quotation[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.QUOTATIONS);
-    return saved ? JSON.parse(saved) : [
-      {
-        id: 'qt-1',
-        number: 'QT-2024-001',
-        date: '2024-05-20',
-        validUntil: '2024-06-20',
-        status: QuotationStatus.DRAFT,
-        clientId: 'client-1',
-        items: [
-          { id: 'item-1', description: 'Consultation Fee', hsn: '9983', qty: 10, rate: 2000, taxRate: 18 }
-        ],
-        placeOfSupply: 'Delhi (07)'
-      }
-    ];
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [leads, setLeads] = useState<Lead[]>(() => {
@@ -86,7 +55,6 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : [
       { id: 'lead-1', name: 'John Doe', company: 'Nexus Inc', value: 50000, status: LeadStatus.NEW, createdAt: '2024-05-15' },
       { id: 'lead-2', name: 'Jane Smith', company: 'Global SCM', value: 120000, status: LeadStatus.PROPOSAL, createdAt: '2024-05-14' },
-      { id: 'lead-3', name: 'Michael Ross', company: 'Ross & Co', value: 35000, status: LeadStatus.CONTACTED, createdAt: '2024-05-10' },
     ];
   });
 
@@ -99,13 +67,6 @@ const App: React.FC = () => {
         email: 'billing@nexus.com', 
         gstin: '27AADCN1234F1Z1',
         address: { street: '123 Tech Park', city: 'Mumbai', state: 'Maharashtra', stateCode: '27', pincode: '400001', country: 'India' }
-      },
-      { 
-        id: 'client-2', 
-        name: 'Craft Daddy Institute', 
-        email: 'admin@craftdaddy.in', 
-        gstin: '07CCDPK8228H1ZI',
-        address: { street: 'E-167 West Vinod Nagar', city: 'Delhi', state: 'Delhi', stateCode: '07', pincode: '110092', country: 'India' }
       }
     ];
   });
@@ -127,11 +88,14 @@ const App: React.FC = () => {
     localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(clients));
   }, [clients]);
 
-  const [userProfile] = useState<UserBusinessProfile>(INITIAL_USER_PROFILE);
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(userProfile));
+  }, [userProfile]);
+
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [editingQuotation, setEditingQuotation] = useState<Quotation | null>(null);
 
-  // --- Invoice Handlers ---
+  // --- Handlers ---
   const handleSaveInvoice = (invoice: Invoice) => {
     const exists = invoices.find(inv => inv.id === invoice.id);
     if (exists) {
@@ -142,30 +106,16 @@ const App: React.FC = () => {
     setEditingInvoice(null);
   };
 
-  const handleDuplicateInvoice = (invoice: Invoice) => {
-    const newNumber = `CD${new Date().getFullYear()}${Math.floor(1000 + Math.random() * 9000)}`;
-    const duplicated: Invoice = {
-      ...invoice,
-      id: `inv-${Date.now()}`,
-      number: newNumber,
-      date: new Date().toISOString().split('T')[0],
-      status: InvoiceStatus.DRAFT,
-      dueDate: ''
-    };
-    setInvoices([duplicated, ...invoices]);
-  };
-
   const handleUpdateInvoiceStatus = (id: string, status: InvoiceStatus) => {
     setInvoices(invoices.map(inv => inv.id === id ? { ...inv, status } : inv));
   };
 
   const handleDeleteInvoice = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this invoice?')) {
+    if (window.confirm('Delete this invoice?')) {
       setInvoices(invoices.filter(inv => inv.id !== id));
     }
   };
 
-  // --- Quotation Handlers ---
   const handleSaveQuotation = (quotation: Quotation) => {
     const exists = quotations.find(q => q.id === quotation.id);
     if (exists) {
@@ -174,59 +124,6 @@ const App: React.FC = () => {
       setQuotations([quotation, ...quotations]);
     }
     setEditingQuotation(null);
-  };
-
-  const handleDuplicateQuotation = (quotation: Quotation) => {
-    const newNumber = `QT${new Date().getFullYear()}${Math.floor(1000 + Math.random() * 9000)}`;
-    const duplicated: Quotation = {
-      ...quotation,
-      id: `qt-${Date.now()}`,
-      number: newNumber,
-      date: new Date().toISOString().split('T')[0],
-      status: QuotationStatus.DRAFT,
-    };
-    setQuotations([duplicated, ...quotations]);
-  };
-
-  const handleUpdateQuotationStatus = (id: string, status: QuotationStatus) => {
-    setQuotations(quotations.map(q => q.id === id ? { ...q, status } : q));
-  };
-
-  const handleConvertToInvoice = (quotation: Quotation) => {
-      const newInvoiceId = `inv-${Date.now()}`;
-      const newInvoiceNumber = `CD${new Date().getFullYear().toString().slice(-2)}${Math.floor(Math.random() * 99999)}`;
-      
-      const newInvoice: Invoice = {
-          id: newInvoiceId,
-          number: newInvoiceNumber,
-          date: new Date().toISOString().split('T')[0],
-          dueDate: '', 
-          status: InvoiceStatus.DRAFT,
-          clientId: quotation.clientId,
-          items: quotation.items.map(item => ({...item})),
-          placeOfSupply: quotation.placeOfSupply,
-          bankDetails: quotation.bankDetails,
-          notes: quotation.notes,
-          terms: quotation.terms?.replace('Valid for 30 days', 'Payment within 15 days'),
-          customFields: quotation.customFields,
-          discountType: quotation.discountType,
-          discountValue: quotation.discountValue,
-          additionalCharges: quotation.additionalCharges,
-          roundOff: quotation.roundOff,
-          showBankDetails: quotation.showBankDetails
-      };
-
-      setInvoices([newInvoice, ...invoices]);
-      setQuotations(quotations.map(q => q.id === quotation.id ? { ...q, status: QuotationStatus.ACCEPTED } : q));
-      setActiveTab('invoices');
-      setEditingInvoice(newInvoice);
-      setEditingQuotation(null);
-  };
-
-  const handleDeleteQuotation = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this quotation?')) {
-      setQuotations(quotations.filter(q => q.id !== id));
-    }
   };
 
   const handleSaveClient = (client: Client) => {
@@ -260,7 +157,7 @@ const App: React.FC = () => {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
               <div>
                 <h1 className="text-xl md:text-2xl font-bold">Invoices</h1>
-                <p className="text-xs md:text-sm text-gray-500">Manage billing and compliance</p>
+                <p className="text-xs md:text-sm text-gray-500">Manage billing for {userProfile.companyName}</p>
               </div>
               <button 
                 onClick={() => setEditingInvoice({ 
@@ -271,11 +168,11 @@ const App: React.FC = () => {
                   status: InvoiceStatus.DRAFT, 
                   clientId: clients[0]?.id || '', 
                   items: [{ id: '1', description: '', hsn: '', qty: 1, rate: 0, taxRate: 18 }],
-                  placeOfSupply: 'Delhi (07)',
+                  placeOfSupply: `${userProfile.address.state} (${userProfile.address.stateCode})`,
                   bankDetails: userProfile.bankAccounts[0],
-                  terms: '1. Subject to Delhi jurisdiction only.\n2. Payment within due date.'
+                  terms: '1. Subject to local jurisdiction.\n2. Payment within due date.'
                 })}
-                className="w-full sm:w-auto bg-indigo-600 text-white px-5 py-3 rounded-xl hover:bg-indigo-700 transition font-bold shadow-lg shadow-indigo-200 flex items-center justify-center gap-2"
+                className="w-full sm:w-auto bg-indigo-600 text-white px-5 py-3 rounded-xl hover:bg-indigo-700 transition font-bold shadow-lg flex items-center justify-center gap-2"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
                 New Invoice
@@ -285,7 +182,7 @@ const App: React.FC = () => {
               invoices={invoices} 
               clients={clients} 
               onEdit={setEditingInvoice}
-              onDuplicate={handleDuplicateInvoice}
+              onDuplicate={(inv) => setInvoices([{...inv, id: `inv-${Date.now()}`, number: `COPY-${inv.number}`}, ...invoices])}
               onUpdateStatus={handleUpdateInvoiceStatus}
               onDelete={handleDeleteInvoice}
             />
@@ -301,16 +198,15 @@ const App: React.FC = () => {
               onSave={handleSaveQuotation} 
               onCancel={() => setEditingQuotation(null)}
               initialData={editingQuotation}
-              onConvertToInvoice={handleConvertToInvoice}
             />
           );
         }
         return (
           <div className="p-4 md:p-6 lg:p-8">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
               <div>
                 <h1 className="text-xl md:text-2xl font-bold">Quotations</h1>
-                <p className="text-xs md:text-sm text-gray-500">Create estimates and proposals</p>
+                <p className="text-xs md:text-sm text-gray-500">Estimates for {userProfile.companyName}</p>
               </div>
               <button 
                 onClick={() => setEditingQuotation({ 
@@ -321,11 +217,11 @@ const App: React.FC = () => {
                   status: QuotationStatus.DRAFT, 
                   clientId: clients[0]?.id || '', 
                   items: [{ id: '1', description: '', hsn: '', qty: 1, rate: 0, taxRate: 18 }],
-                  placeOfSupply: 'Delhi (07)',
+                  placeOfSupply: `${userProfile.address.state} (${userProfile.address.stateCode})`,
                   bankDetails: userProfile.bankAccounts[0],
-                  terms: '1. Valid for 30 days.\n2. Subject to final agreement.'
+                  terms: 'Valid for 30 days.'
                 })}
-                className="w-full sm:w-auto bg-indigo-600 text-white px-5 py-3 rounded-xl hover:bg-indigo-700 transition font-bold shadow-lg shadow-indigo-200 flex items-center justify-center gap-2"
+                className="w-full sm:w-auto bg-indigo-600 text-white px-5 py-3 rounded-xl hover:bg-indigo-700 transition font-bold shadow-lg flex items-center justify-center gap-2"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
                 New Quotation
@@ -335,10 +231,10 @@ const App: React.FC = () => {
               quotations={quotations} 
               clients={clients} 
               onEdit={setEditingQuotation}
-              onDuplicate={handleDuplicateQuotation}
-              onConvertToInvoice={handleConvertToInvoice}
-              onUpdateStatus={handleUpdateQuotationStatus}
-              onDelete={handleDeleteQuotation}
+              onDuplicate={(qt) => setQuotations([{...qt, id: `qt-${Date.now()}`, number: `COPY-${qt.number}`}, ...quotations])}
+              onUpdateStatus={(id, status) => setQuotations(quotations.map(q => q.id === id ? {...q, status} : q))}
+              onDelete={(id) => setQuotations(quotations.filter(q => q.id !== id))}
+              onConvertToInvoice={() => {}}
             />
           </div>
         );
@@ -346,8 +242,10 @@ const App: React.FC = () => {
         return <LeadBoard leads={leads} setLeads={setLeads} />;
       case 'clients':
         return <ClientList clients={clients} onSave={handleSaveClient} onDelete={(id) => setClients(clients.filter(c => c.id !== id))} />;
+      case 'settings':
+        return <Settings profile={userProfile} onSave={setUserProfile} />;
       default:
-        return <div className="p-10 text-center text-gray-500">Feature coming soon...</div>;
+        return <Dashboard invoices={invoices} leads={leads} />;
     }
   };
 
@@ -376,15 +274,12 @@ const App: React.FC = () => {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden print:h-auto print:overflow-visible print:block">
         <header className="lg:hidden flex items-center justify-between p-4 bg-white border-b border-gray-100 no-print">
           <div className="flex items-center gap-3">
-             <button 
-                onClick={() => setIsSidebarOpen(true)}
-                className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
-             >
+             <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
              </button>
-             <h2 className="font-black text-indigo-600 tracking-tighter uppercase">Craft Daddy</h2>
+             <h2 className="font-black text-indigo-600 tracking-tighter uppercase">{userProfile.companyName}</h2>
           </div>
-          <img src="https://picsum.photos/32/32" className="w-8 h-8 rounded-full" alt="Avatar" />
+          <img src={userProfile.logoUrl || "https://picsum.photos/32/32"} className="w-8 h-8 rounded-full object-contain bg-gray-50" alt="Profile" />
         </header>
 
         <main className="flex-1 overflow-y-auto print:h-auto print:overflow-visible print:block">
