@@ -33,6 +33,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'invoices' | 'quotations' | 'leads' | 'clients' | 'settings'>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [syncState, setSyncState] = useState(StorageService.getSyncInfo());
   
   // --- States ---
   const [userProfile, setUserProfile] = useState<UserBusinessProfile>(INITIAL_USER_PROFILE);
@@ -43,6 +44,13 @@ const App: React.FC = () => {
 
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [editingQuotation, setEditingQuotation] = useState<Quotation | null>(null);
+
+  // --- Sync Listener ---
+  useEffect(() => {
+    const handleSyncChange = () => setSyncState(StorageService.getSyncInfo());
+    window.addEventListener('sync-status-change', handleSyncChange);
+    return () => window.removeEventListener('sync-status-change', handleSyncChange);
+  }, []);
 
   // --- Async Hydration ---
   useEffect(() => {
@@ -205,7 +213,7 @@ const App: React.FC = () => {
           companyName={userProfile.companyName}
           onTabChange={(tab) => { setActiveTab(tab); setEditingInvoice(null); setEditingQuotation(null); setIsSidebarOpen(false); }} 
           onClose={() => setIsSidebarOpen(false)}
-          isCloudEnabled={StorageService.isCloudEnabled()}
+          syncState={syncState}
         />
       </div>
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden print:block">

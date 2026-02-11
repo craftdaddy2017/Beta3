@@ -2,6 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { UserBusinessProfile, Address } from '../types';
 import { INDIAN_STATES } from '../constants';
+import { StorageService } from '../services/StorageService';
 
 interface SettingsProps {
   profile: UserBusinessProfile;
@@ -11,7 +12,8 @@ interface SettingsProps {
 const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
   const [formData, setFormData] = useState<UserBusinessProfile>(profile);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState('');
 
   const [supabaseUrl, setSupabaseUrl] = useState((window as any).SUPABASE_URL || '');
   const [supabaseKey, setSupabaseKey] = useState((window as any).SUPABASE_ANON_KEY || '');
@@ -34,20 +36,31 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
     }));
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaveStatus('saving');
+    setErrorMessage('');
     
-    // Inject Supabase credentials into window for persistence across session
+    // Temporarily inject to test
     (window as any).SUPABASE_URL = supabaseUrl;
     (window as any).SUPABASE_ANON_KEY = supabaseKey;
     localStorage.setItem('SUPABASE_CONFIG', JSON.stringify({ url: supabaseUrl, key: supabaseKey }));
+
+    // Test the connection immediately
+    if (supabaseUrl && supabaseKey) {
+      const testResult = await StorageService.testConnection();
+      if (!testResult.success) {
+        setSaveStatus('error');
+        setErrorMessage(testResult.message);
+        return;
+      }
+    }
 
     onSave(formData);
     setTimeout(() => {
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
-      window.location.reload(); // Refresh to re-initialize cloud connection
+      window.location.reload(); 
     }, 500);
   };
 
@@ -61,11 +74,20 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
       <form onSubmit={handleSave} className="space-y-6">
         {/* Cloud Connection */}
         <div className="bg-indigo-900 p-6 rounded-2xl shadow-xl border border-indigo-700 text-white">
-          <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-            <svg className="w-6 h-6 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" /></svg>
-            Cloud Connectivity (Supabase)
-          </h2>
-          <p className="text-indigo-200 text-xs mb-6">Enter your Supabase credentials to sync data across devices. Leave blank to stay in local-only mode.</p>
+          <div className="flex justify-between items-start mb-4">
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <svg className="w-6 h-6 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" /></svg>
+              Cloud Connectivity (Supabase)
+            </h2>
+            <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${StorageService.isCloudEnabled() ? 'bg-emerald-500' : 'bg-white/10 text-white/40'}`}>
+              {StorageService.isCloudEnabled() ? 'Configured' : 'Offline'}
+            </div>
+          </div>
+          
+          <p className="text-indigo-200 text-xs mb-6 leading-relaxed">
+            Enter your Supabase credentials. Ensure you have run the <span className="text-white font-bold">SQL Script</span> in your dashboard to create the <code className="bg-white/10 px-1 rounded">user_data</code> table.
+          </p>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-1.5">Supabase Project URL</label>
@@ -88,6 +110,16 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
               />
             </div>
           </div>
+
+          {saveStatus === 'error' && (
+            <div className="mt-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg flex items-center gap-3">
+              <svg className="w-5 h-5 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              <div className="text-xs">
+                <p className="font-bold text-red-200">Connection Failed</p>
+                <p className="text-red-300/80">{errorMessage}</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Company Branding */}
@@ -151,8 +183,8 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
         </div>
 
         <div className="flex justify-end gap-4 pt-4">
-          <button type="submit" disabled={saveStatus === 'saving'} className={`px-10 py-4 rounded-xl font-bold transition shadow-lg flex items-center gap-2 ${saveStatus === 'saved' ? 'bg-emerald-500 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}>
-            {saveStatus === 'saving' ? 'Syncing...' : saveStatus === 'saved' ? 'Synced Successfully' : 'Apply & Sync Cloud'}
+          <button type="submit" disabled={saveStatus === 'saving'} className={`px-10 py-4 rounded-xl font-bold transition shadow-lg flex items-center gap-2 ${saveStatus === 'saved' ? 'bg-emerald-500 text-white' : saveStatus === 'error' ? 'bg-red-600 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}>
+            {saveStatus === 'saving' ? 'Syncing...' : saveStatus === 'saved' ? 'Synced Successfully' : saveStatus === 'error' ? 'Try Again' : 'Apply & Sync Cloud'}
           </button>
         </div>
       </form>
