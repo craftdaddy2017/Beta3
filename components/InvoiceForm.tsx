@@ -1,5 +1,4 @@
-
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Invoice, 
   Quotation,
@@ -12,7 +11,7 @@ import {
   AdditionalCharge
 } from '../types';
 import { CRAFT_DADDY_LOGO_SVG } from '../constants';
-import { calculateLineItem, numberToWords } from '../services/Calculations';
+import { calculateLineItem, numberToWords, formatCurrency } from '../services/Calculations';
 
 interface DocumentFormProps {
   userProfile: UserBusinessProfile;
@@ -33,24 +32,27 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
   mode = 'invoice',
   onConvertToInvoice
 }) => {
+  // Use a generic state that matches the structure of both Invoice and Quotation
+  // We'll treat 'dueDate' as 'validUntil' when in quotation mode
   const [document, setDocument] = useState<any>(() => {
     const baseDoc = initialData ? { ...initialData } : {
       id: `${mode === 'invoice' ? 'inv' : 'qt'}-${Date.now()}`,
       number: mode === 'invoice' 
-        ? `CD${new Date().getFullYear().toString().slice(-2)}${Math.floor(10000 + Math.random() * 89999)}`
-        : `QT${new Date().getFullYear().toString().slice(-2)}${Math.floor(10000 + Math.random() * 89999)}`,
+        ? `CD${new Date().getFullYear().toString().slice(-2)}${Math.floor(Math.random() * 99999)}`
+        : `QT${new Date().getFullYear().toString().slice(-2)}${Math.floor(Math.random() * 99999)}`,
       date: new Date().toISOString().split('T')[0],
-      dueDate: '',
+      dueDate: '', // used as validUntil for quotation
+      poNumber: '',
       status: mode === 'invoice' ? InvoiceStatus.DRAFT : QuotationStatus.DRAFT,
       clientId: clients[0]?.id || '',
       items: [
-        { id: '1', description: 'PROFESSIONAL SERVICES', hsn: '9983', qty: 1, rate: 0, taxRate: 18 },
+        { id: '1', description: 'REFLECTIVE JACKET', hsn: '6210', qty: 225, rate: 100, taxRate: 5 },
       ],
-      placeOfSupply: `${userProfile.address.state} (${userProfile.address.stateCode})`,
+      placeOfSupply: 'Delhi (07)',
       bankDetails: userProfile.bankAccounts[0],
       notes: '',
-      terms: mode === 'invoice' ? '1. Subject to local jurisdiction.\n2. Payment within due date.' : 'Valid for 30 days.',
-      customFields: [{ label: 'P.O. Number', value: '' }],
+      terms: '1. For questions concerning this document, please contact Email Address : sales@craftdaddy.in\n2. All the dispute are subject to delhi jurisdiction only',
+      customFields: [],
       discountType: 'fixed',
       discountValue: 0,
       additionalCharges: [],
@@ -66,12 +68,30 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
       baseDoc.bankDetails = userProfile.bankAccounts[0];
     }
 
+    if (baseDoc.showBankDetails === undefined) {
+      baseDoc.showBankDetails = true;
+    }
+
+    if (!baseDoc.customFields || baseDoc.customFields.length === 0) {
+      baseDoc.customFields = [
+         { label: 'P.O. Number', value: baseDoc.poNumber || '' }
+      ];
+    }
+
     return baseDoc;
   });
 
-  const [showDiscount, setShowDiscount] = useState(document.discountValue > 0);
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(true);
+  const [showDiscount, setShowDiscount] = useState(false);
   
   const isQuotation = mode === 'quotation';
+
+  useEffect(() => {
+    if (document.discountValue && document.discountValue > 0) {
+        setShowDiscount(true);
+    }
+  }, [document.discountValue]);
+
   const selectedClient = useMemo(() => clients.find(c => c.id === document.clientId), [clients, document.clientId]);
   
   const isInterState = useMemo(() => {
@@ -100,13 +120,15 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
       }
     }
 
-    const additionalChargesTotal = (document.additionalCharges || []).reduce((sum: number, charge: AdditionalCharge) => sum + (Number(charge.amount) || 0), 0);
-    const finalTotal = itemTotals.total - discountAmount + additionalChargesTotal + (document.roundOff || 0);
+    const additionalChargesTotal = (document.additionalCharges || []).reduce((sum: number, charge: AdditionalCharge) => sum + (charge.amount || 0), 0);
+    const preRoundTotal = itemTotals.total - discountAmount + additionalChargesTotal;
+    const finalTotal = preRoundTotal + (document.roundOff || 0);
 
     return {
       ...itemTotals,
       discountAmount,
       additionalChargesTotal,
+      preRoundTotal,
       finalTotal
     };
   }, [document.items, isInterState, document.discountType, document.discountValue, document.additionalCharges, document.roundOff]);
@@ -170,34 +192,88 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
     }));
   };
 
+  const handleRoundUp = () => {
+    const current = totals.preRoundTotal;
+    const target = Math.ceil(current);
+    const diff = target - current;
+    setDocument({ ...document, roundOff: diff });
+  };
+
+  const handleRoundDown = () => {
+    const current = totals.preRoundTotal;
+    const target = Math.floor(current);
+    const diff = target - current;
+    setDocument({ ...document, roundOff: diff });
+  };
+
   const handleSave = () => {
+     // Format data back to specific type structure if needed
      const finalData = { ...document };
      if (isQuotation) {
         finalData.validUntil = finalData.dueDate;
+        delete finalData.dueDate;
      }
      onSave(finalData);
   };
 
   const handlePrint = () => {
-    window.focus();
-    setTimeout(() => window.print(), 100);
+    if (window) {
+        window.focus();
+        setTimeout(() => {
+            window.print();
+        }, 100);
+    }
   };
 
+  const handleConversion = () => {
+    if (onConvertToInvoice) {
+        // Format data properly before converting
+        const finalData = { ...document };
+        if (isQuotation) {
+            finalData.validUntil = finalData.dueDate;
+            delete finalData.dueDate;
+        }
+        onConvertToInvoice(finalData);
+    }
+  };
+
+  // Adjusted grid columns to give Rate more space (80px) and added 30px action column
   const GRID_COLS = "grid-cols-[20px_minmax(0,2fr)_minmax(60px,0.5fr)_minmax(55px,0.4fr)_minmax(55px,0.4fr)_minmax(80px,0.5fr)_minmax(90px,0.6fr)_minmax(70px,0.5fr)_minmax(70px,0.5fr)_minmax(90px,0.6fr)_30px]";
 
   return (
     <div className="min-h-screen bg-gray-50 pb-32 relative font-sans text-sm text-gray-700">
+      
+      {/* =====================================================================================
+          EDITOR VIEW (Visible on Screen, Hidden on Print)
+         ===================================================================================== */}
       <div className="print:hidden">
+        {/* Top Navigation - Sticky for better UX */}
         <div className="sticky top-0 z-20 bg-gray-50/95 backdrop-blur-sm border-b border-gray-200/50 shadow-sm transition-all">
             <div className="max-w-6xl mx-auto py-4 px-4 flex justify-between items-center">
               <button onClick={onCancel} className="text-gray-500 hover:text-gray-800 flex items-center gap-1 font-medium transition group">
                   <div className="bg-white p-1.5 rounded-full border border-gray-200 group-hover:border-gray-400 transition shadow-sm">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
                   </div>
-                  <span className="hidden sm:inline">Back</span>
+                  <span className="hidden sm:inline">Back to Dashboard</span>
               </button>
               <div className="flex gap-3">
-                  <button onClick={handlePrint} className="bg-indigo-600 text-white border border-transparent px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 active:scale-95 flex items-center gap-2 transition transform">
+                  {/* Convert to Invoice Button (Only in Quotation Mode) */}
+                  {isQuotation && onConvertToInvoice && (
+                    <button 
+                        type="button"
+                        onClick={handleConversion} 
+                        className="bg-white text-indigo-600 border border-indigo-200 px-5 py-2.5 rounded-xl font-bold hover:bg-indigo-50 active:scale-95 flex items-center gap-2 transition"
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                        Convert to Invoice
+                    </button>
+                  )}
+                  {/* Primary Action Button for Printing */}
+                  <button 
+                      type="button"
+                      onClick={handlePrint} 
+                      className="bg-indigo-600 text-white border border-transparent px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 hover:shadow-indigo-200 active:scale-95 flex items-center gap-2 transition transform"
+                  >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
                       Print / Save PDF
                   </button>
@@ -205,88 +281,198 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
             </div>
         </div>
 
+        {/* Main Editor Document */}
         <div className="max-w-5xl mx-auto bg-white shadow-xl rounded-lg p-8 md:p-12 mb-8 mt-6 relative">
-          <div className="flex flex-col items-center mb-10">
-              <h1 className="text-3xl font-extrabold text-gray-900 border-b-2 border-dashed border-gray-300 pb-1">{isQuotation ? 'Quotation' : 'Tax Invoice'}</h1>
+          {/* Header */}
+          <div className="flex flex-col items-center mb-10 group relative">
+              <div className="flex items-center gap-2 border-b-2 border-dashed border-gray-300 pb-1 mb-1 hover:border-gray-400 transition">
+                <h1 className="text-3xl font-extrabold text-gray-900 cursor-text">
+                    {isQuotation ? 'Quotation' : 'Tax Invoice'}
+                </h1>
+                <span className="text-gray-400">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                </span>
+              </div>
+              <p className="text-indigo-500 text-xs font-bold mt-1 cursor-pointer">+ Add Subtitle</p>
           </div>
 
           <div className="flex flex-col md:flex-row justify-between gap-12 mb-12">
-              <div className="flex-1 space-y-4 max-w-sm">
-                <div className="grid grid-cols-[110px_1fr] items-center gap-2">
-                    <label className="text-gray-500 font-semibold">{isQuotation ? 'Quotation No' : 'Invoice No'}</label>
-                    <input type="text" value={document.number} onChange={(e) => setDocument({...document, number: e.target.value})} className="w-full font-bold text-gray-900 border-b border-gray-200 focus:border-indigo-600 outline-none py-1 bg-transparent" />
+              {/* Left Info Fields */}
+              <div className="flex-1 space-y-5 max-w-sm">
+                <div className="grid grid-cols-[110px_1fr] items-center gap-2 group">
+                    <label className="text-gray-500 font-semibold underline decoration-dotted cursor-help">
+                        {isQuotation ? 'Quotation No' : 'Invoice No'}<span className="text-red-500">*</span>
+                    </label>
+                    <input 
+                      type="text" 
+                      value={document.number} 
+                      onChange={(e) => setDocument({...document, number: e.target.value})}
+                      className="w-full font-bold text-gray-900 border-b border-gray-200 focus:border-indigo-600 outline-none py-1 transition-colors bg-transparent"
+                    />
                 </div>
+
                 <div className="grid grid-cols-[110px_1fr] items-center gap-2">
-                    <label className="text-gray-500 font-semibold">Date</label>
-                    <input type="date" value={document.date} onChange={(e) => setDocument({...document, date: e.target.value})} className="w-full font-medium text-gray-900 border-b border-gray-200 focus:border-indigo-600 outline-none py-1 bg-transparent" />
-                </div>
-                {/* Fixed Due Date UI */}
-                <div className="grid grid-cols-[110px_1fr] items-center gap-2">
-                    <label className="text-gray-500 font-semibold">{isQuotation ? 'Valid Until' : 'Due Date'}</label>
-                    <input type="date" value={document.dueDate} onChange={(e) => setDocument({...document, dueDate: e.target.value})} className="w-full font-medium text-gray-900 border-b border-gray-200 focus:border-indigo-600 outline-none py-1 bg-transparent" />
+                    <label className="text-gray-500 font-semibold underline decoration-dotted cursor-help">
+                        {isQuotation ? 'Quotation Date' : 'Invoice Date'}<span className="text-red-500">*</span>
+                    </label>
+                    <input 
+                      type="date" 
+                      required
+                      value={document.date} 
+                      onChange={(e) => setDocument({...document, date: e.target.value})}
+                      className="w-full font-medium text-gray-900 border-b border-gray-200 focus:border-indigo-600 outline-none py-1 transition-colors bg-transparent cursor-pointer"
+                      onClick={(e) => e.currentTarget.showPicker()}
+                    />
                 </div>
                 
+                <div className="grid grid-cols-[110px_1fr] items-center gap-2">
+                    <label className="text-gray-500 font-semibold underline decoration-dotted cursor-help">
+                        {isQuotation ? 'Valid Till Date' : 'Due Date'}
+                    </label>
+                    <input 
+                      type="date" 
+                      value={document.dueDate} 
+                      onChange={(e) => setDocument({...document, dueDate: e.target.value})}
+                      className="w-full font-medium text-gray-900 border-b border-gray-200 focus:border-indigo-600 outline-none py-1 transition-colors bg-transparent cursor-pointer"
+                      onClick={(e) => e.currentTarget.showPicker()}
+                      placeholder="Optional"
+                    />
+                </div>
+
+                {/* Custom Fields (PO Number etc) */}
                 {document.customFields?.map((field: CustomField, index: number) => (
                     <div key={index} className="grid grid-cols-[110px_1fr] items-center gap-2 group">
-                      <input type="text" value={field.label} onChange={(e) => updateCustomField(index, 'label', e.target.value)} className="text-gray-500 font-semibold bg-transparent outline-none border-b border-transparent focus:border-indigo-600 placeholder-gray-400 text-right pr-2" placeholder="Label" />
+                      <input
+                          type="text"
+                          value={field.label}
+                          onChange={(e) => updateCustomField(index, 'label', e.target.value)}
+                          className="text-gray-500 font-semibold bg-transparent outline-none border-b border-transparent focus:border-indigo-600 placeholder-gray-400 text-right pr-2"
+                          placeholder="Label"
+                      />
                       <div className="flex items-center gap-2">
-                          <input type="text" value={field.value} onChange={(e) => updateCustomField(index, 'value', e.target.value)} className="w-full font-medium text-gray-900 border-b border-gray-200 focus:border-indigo-600 outline-none py-1 bg-transparent" placeholder="Value" />
+                          <input 
+                            type="text" 
+                            value={field.value} 
+                            onChange={(e) => updateCustomField(index, 'value', e.target.value)}
+                            className="w-full font-medium text-gray-900 border-b border-gray-200 focus:border-indigo-600 outline-none py-1 bg-transparent"
+                            placeholder="Value"
+                          />
                           <button onClick={() => removeCustomField(index)} className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition px-1">×</button>
                       </div>
                     </div>
                 ))}
                 
-                <button onClick={addCustomField} className="text-indigo-600 text-xs font-bold hover:underline flex items-center gap-1 mt-2">
+                <button 
+                    onClick={addCustomField}
+                    className="text-indigo-600 text-xs font-bold hover:underline flex items-center gap-1 mt-2 transition"
+                >
                     <span className="text-lg leading-none">+</span> Add Custom Fields
                 </button>
               </div>
 
-              <div className="w-full md:w-72">
-                <div className="w-full h-32 border border-gray-100 rounded-lg flex items-center justify-center p-4 bg-white shadow-sm">
+              {/* Right Logo Area */}
+              <div className="w-full md:w-72 flex flex-col items-center">
+                <div className="w-full h-32 border border-gray-100 rounded-lg flex items-center justify-center p-4 relative group bg-white shadow-sm hover:shadow-md transition">
                     <img src={userProfile.logoUrl || CRAFT_DADDY_LOGO_SVG} className="max-h-full max-w-full object-contain" alt="Logo" />
+                </div>
+                <div className="flex gap-4 mt-2 text-xs text-gray-400 font-medium">
+                   <button className="hover:text-red-500">× Remove</button>
+                   <button className="hover:text-indigo-600">✎ change</button>
                 </div>
               </div>
           </div>
 
+          {/* Billed By / Billed To Sections */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-              <div className="border border-gray-200 rounded-lg overflow-hidden flex flex-col h-full bg-white shadow-sm">
-                <div className="px-5 py-3 border-b border-gray-100 bg-white">
-                    <h3 className="text-gray-800 font-bold text-base border-b-2 border-gray-800 pb-0.5 inline-block">{isQuotation ? 'Quotation From' : 'Billed By'}</h3>
+              {/* Billed By */}
+              <div className="border border-gray-200 rounded-lg overflow-hidden flex flex-col h-full bg-white shadow-sm transition duration-300">
+                <div className="px-5 py-3 border-b border-gray-100 bg-white flex justify-between items-center">
+                    <h3 className="text-gray-800 font-bold text-base border-b-2 border-gray-800 pb-0.5 inline-block">
+                        {isQuotation ? 'Quotation From' : 'Billed By'}
+                    </h3>
+                    <span className="text-xs text-gray-400">Your Details</span>
                 </div>
-                <div className="p-5 flex-1 text-xs text-gray-600 space-y-2">
-                    <p className="font-bold text-indigo-700 text-sm">{userProfile.companyName}</p>
-                    <p>{userProfile.address.street}, {userProfile.address.city}, {userProfile.address.state} - {userProfile.address.pincode}</p>
-                    <p><span className="font-bold">GSTIN:</span> {userProfile.gstin}</p>
+                <div className="p-5 flex-1 bg-white">
+                    <div className="mb-4">
+                      <select className="border border-gray-200 rounded-md w-full p-2 bg-gray-50/50 text-sm focus:border-indigo-500 outline-none">
+                          <option>{userProfile.companyName}</option>
+                      </select>
+                    </div>
+                    {/* Display User Profile Details in Editor */}
+                    <div className="text-xs text-gray-600 space-y-3 mt-4">
+                        <div className="grid grid-cols-[100px_1fr]">
+                           <span className="font-bold text-gray-700">Business Name</span>
+                           <span className="font-bold text-indigo-700">{userProfile.companyName}</span>
+                        </div>
+                        <div className="grid grid-cols-[100px_1fr]">
+                           <span className="font-bold text-gray-700">Address</span>
+                           <span>{userProfile.address.street}, {userProfile.address.city}, {userProfile.address.state} - {userProfile.address.pincode}</span>
+                        </div>
+                        <div className="grid grid-cols-[100px_1fr]">
+                           <span className="font-bold text-gray-700">GSTIN</span>
+                           <span>{userProfile.gstin}</span>
+                        </div>
+                         <div className="grid grid-cols-[100px_1fr]">
+                           <span className="font-bold text-gray-700">PAN</span>
+                           <span>{userProfile.pan}</span>
+                        </div>
+                    </div>
                 </div>
               </div>
 
-              <div className="border border-gray-200 rounded-lg overflow-hidden flex flex-col h-full bg-white shadow-sm">
-                <div className="px-5 py-3 border-b border-gray-100 bg-white">
-                     <h3 className="text-gray-800 font-bold text-base border-b-2 border-gray-800 pb-0.5 inline-block">{isQuotation ? 'Quotation For' : 'Billed To'}</h3>
+              {/* Billed To */}
+              <div className="border border-gray-200 rounded-lg overflow-hidden flex flex-col h-full bg-white shadow-sm transition duration-300">
+                <div className="px-5 py-3 border-b border-gray-100 bg-white flex justify-between items-center">
+                     <h3 className="text-gray-800 font-bold text-base border-b-2 border-gray-800 pb-0.5 inline-block">
+                        {isQuotation ? 'Quotation For' : 'Billed To'}
+                    </h3>
+                    <span className="text-xs text-gray-400">Client's Details</span>
                 </div>
                 <div className="p-5 flex-1 bg-white">
-                    <select className="border border-gray-200 rounded-md w-full p-2 bg-white text-sm focus:border-indigo-500 outline-none mb-4" value={document.clientId} onChange={(e) => setDocument({...document, clientId: e.target.value})}>
-                        {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
+                    <div className="mb-4">
+                      <select 
+                          className="border border-gray-200 rounded-md w-full p-2 bg-white text-sm focus:border-indigo-500 outline-none"
+                          value={document.clientId}
+                          onChange={(e) => setDocument({...document, clientId: e.target.value})}
+                      >
+                          {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </select>
+                    </div>
+                    {/* Display Selected Client Details in Editor */}
                     {selectedClient && (
-                      <div className="text-xs text-gray-600 space-y-2">
-                        <p className="font-bold text-indigo-700 text-sm">{selectedClient.name}</p>
-                        <p>{selectedClient.address.street}, {selectedClient.address.city}, {selectedClient.address.state} - {selectedClient.address.pincode}</p>
-                        <p><span className="font-bold">GSTIN:</span> {selectedClient.gstin || 'N/A'}</p>
+                      <div className="text-xs text-gray-600 space-y-3 mt-4">
+                        <div className="grid grid-cols-[100px_1fr]">
+                           <span className="font-bold text-gray-700">Business Name</span>
+                           <span className="font-bold text-indigo-700">{selectedClient.name}</span>
+                        </div>
+                        <div className="grid grid-cols-[100px_1fr]">
+                           <span className="font-bold text-gray-700">Address</span>
+                           <span>{selectedClient.address.street}, {selectedClient.address.city}, {selectedClient.address.state} - {selectedClient.address.pincode}</span>
+                        </div>
+                        <div className="grid grid-cols-[100px_1fr]">
+                           <span className="font-bold text-gray-700">GSTIN</span>
+                           <span>{selectedClient.gstin || 'N/A'}</span>
+                        </div>
                       </div>
                     )}
                 </div>
               </div>
           </div>
 
+          <div className="flex items-center gap-2 mb-4">
+             <input type="checkbox" id="shipping" className="rounded text-indigo-600 focus:ring-indigo-500" />
+             <label htmlFor="shipping" className="text-xs text-gray-500 font-medium">Add Shipping Details</label>
+          </div>
+
+          {/* Line Items Table */}
           <div className="mb-4 rounded-t-lg border border-gray-200 overflow-hidden">
               <div className="min-w-full">
-                  <div className={`bg-[#5c2c90] text-white text-xs font-bold py-3 px-3 grid ${GRID_COLS} gap-2 items-center`}>
+                  <div className={`bg-[#8b5cf6] text-white text-xs font-bold py-3 px-3 grid ${GRID_COLS} gap-2 items-center rounded-t-lg`}>
                     <div>#</div>
                     <div>Item</div>
-                    <div className="text-center">HSN</div>
-                    <div className="text-left pl-1">GST%</div>
-                    <div className="text-left">Qty</div>
+                    <div className="text-center">HSN/SAC</div>
+                    <div className="text-left pl-1">TAX Rate</div>
+                    <div className="text-left">Quantity</div>
                     <div className="text-left">Rate</div>
                     <div className="text-left">Amount</div>
                     <div className="text-left">CGST</div>
@@ -300,17 +486,80 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                     return (
                         <div key={item.id} className="border-b border-gray-100 hover:bg-gray-50 transition group">
                           <div className={`py-4 px-3 grid ${GRID_COLS} gap-2 items-start text-xs text-gray-800`}>
-                              <div className="font-bold pt-2">{idx + 1}.</div>
-                              <input type="text" className="w-full bg-transparent border-b border-dashed border-gray-300 focus:border-indigo-500 outline-none pb-1 font-medium text-sm" value={item.description} onChange={e => updateItem(item.id, 'description', e.target.value)} />
-                              <input type="text" className="w-full bg-transparent text-center border-b border-transparent hover:border-gray-200 focus:border-indigo-500 outline-none" value={item.hsn} onChange={e => updateItem(item.id, 'hsn', e.target.value)} />
-                              <input type="number" className="w-full bg-transparent border-none outline-none text-left" value={item.taxRate} onChange={e => updateItem(item.id, 'taxRate', parseFloat(e.target.value))} />
-                              <input type="number" className="w-full text-left bg-transparent border-none outline-none" value={item.qty} onChange={e => updateItem(item.id, 'qty', parseFloat(e.target.value))} />
-                              <input type="number" className="w-full bg-transparent border-none outline-none text-left font-bold" value={item.rate} onChange={e => updateItem(item.id, 'rate', parseFloat(e.target.value))} />
-                              <div className="pt-1">₹{calc.taxableValue.toLocaleString('en-IN')}</div>
-                              <div className="pt-1 text-gray-500">₹{calc.cgst.toLocaleString('en-IN')}</div>
-                              <div className="pt-1 text-gray-500">₹{calc.sgst.toLocaleString('en-IN')}</div>
-                              <div className="pt-1 font-bold">₹{calc.total.toLocaleString('en-IN')}</div>
-                              <button onClick={() => removeItem(item.id)} className="text-gray-400 hover:text-red-500 p-1">×</button>
+                              <div className="font-bold pt-2 text-base">{idx + 1}.</div>
+                              <div className="space-y-3">
+                                <div className="relative">
+                                    <input 
+                                      type="text" 
+                                      className="w-full bg-transparent border-b border-dashed border-gray-300 focus:border-indigo-500 outline-none pb-1 font-medium placeholder-gray-400 text-gray-900 text-sm"
+                                      value={item.description}
+                                      onChange={e => updateItem(item.id, 'description', e.target.value)}
+                                      placeholder="Item Name"
+                                    />
+                                </div>
+                                <div className="border border-gray-200 rounded p-2 bg-white relative">
+                                    <div className="flex gap-2 mb-1 border-b border-gray-100 pb-1">
+                                        <button className="p-1 hover:bg-gray-100 rounded">B</button>
+                                        <button className="p-1 hover:bg-gray-100 rounded italic">I</button>
+                                        <button className="p-1 hover:bg-gray-100 rounded underline">U</button>
+                                    </div>
+                                    <textarea 
+                                        className="w-full text-xs text-gray-600 outline-none resize-none bg-transparent"
+                                        rows={3}
+                                        placeholder="Add description..."
+                                    ></textarea>
+                                </div>
+                              </div>
+                              <div className="pt-1">
+                                  <input 
+                                    type="text" 
+                                    className="w-full bg-transparent border-b border-transparent hover:border-gray-200 focus:border-indigo-500 outline-none text-center"
+                                    value={item.hsn}
+                                    onChange={e => updateItem(item.id, 'hsn', e.target.value)}
+                                    placeholder="HSN"
+                                  />
+                              </div>
+                              <div className="pt-1">
+                                  <div className="flex items-center">
+                                      <span className="mr-1">%</span>
+                                      <input 
+                                        type="number"
+                                        className="w-full bg-transparent border-none outline-none text-left"
+                                        value={item.taxRate}
+                                        onChange={e => updateItem(item.id, 'taxRate', parseFloat(e.target.value))}
+                                      />
+                                  </div>
+                              </div>
+                              <div className="pt-1">
+                                  <input 
+                                    type="number" 
+                                    className="w-full text-left bg-transparent border-b border-transparent hover:border-gray-200 focus:border-indigo-500 outline-none transition-colors"
+                                    value={item.qty}
+                                    onChange={e => updateItem(item.id, 'qty', parseFloat(e.target.value))}
+                                  />
+                              </div>
+                              <div className="pt-1 flex items-center">
+                                  <span className="mr-1 text-gray-500 font-bold">₹</span>
+                                  <input 
+                                    type="number" 
+                                    className="w-full bg-transparent border-b border-transparent focus:border-indigo-500 outline-none text-left font-bold text-gray-900"
+                                    value={item.rate}
+                                    onChange={e => updateItem(item.id, 'rate', parseFloat(e.target.value))}
+                                  />
+                              </div>
+                              <div className="pt-1 text-left font-medium">₹{calc.taxableValue.toLocaleString('en-IN', {minimumFractionDigits: 2})}</div>
+                              <div className="pt-1 text-left text-gray-500">₹{calc.cgst.toLocaleString('en-IN', {minimumFractionDigits: 2})}</div>
+                              <div className="pt-1 text-left text-gray-500">₹{calc.sgst.toLocaleString('en-IN', {minimumFractionDigits: 2})}</div>
+                              <div className="pt-1 text-left font-bold text-gray-900">₹{calc.total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</div>
+                              <div className="pt-1 flex justify-center">
+                                <button 
+                                    onClick={() => removeItem(item.id)} 
+                                    className="text-gray-400 hover:text-red-500 transition p-1"
+                                    title="Remove Item"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                </button>
+                              </div>
                           </div>
                         </div>
                     );
@@ -318,58 +567,53 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
               </div>
           </div>
 
-          <button onClick={addItem} className="border border-dashed border-indigo-400 text-indigo-600 px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-indigo-50 transition mb-12">
-              <span className="text-lg leading-none">+</span> Add New Line
-          </button>
+          <div className="flex justify-between mb-12">
+            <div className="flex gap-4">
+                 <button 
+                  onClick={addItem}
+                  className="border border-dashed border-indigo-400 text-indigo-600 px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-indigo-50 transition"
+              >
+                  <span className="text-lg leading-none">+</span> Add New Line
+              </button>
+            </div>
+          </div>
           
           <div className="flex justify-end mb-12">
-               <div className="w-96 space-y-4">
+               <div className="w-80">
+                   <div className="flex justify-between items-center mb-2">
+                       <h3 className="font-bold text-gray-800">Show Total in PDF</h3>
+                       <button className="text-gray-400 hover:text-gray-600">
+                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                       </button>
+                   </div>
                    <div className="space-y-2 text-sm">
                       <div className="flex justify-between font-bold text-gray-700">
-                          <span>Sub Total</span>
+                          <span>Amount</span>
                           <span>₹{totals.taxable.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
                       </div>
-                      <div className="flex justify-between text-gray-500">
-                          <span>Total Tax (GST)</span>
-                          <span>₹{(totals.cgst + totals.sgst + totals.igst).toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                      <div className="flex justify-between font-bold text-gray-700">
+                          <span>SGST</span>
+                          <span>₹{totals.sgst.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
                       </div>
-
-                      <div className="pt-2 border-t border-gray-100">
-                         {!showDiscount ? (
-                            <button onClick={() => setShowDiscount(true)} className="text-indigo-600 text-xs font-bold flex items-center gap-1 hover:underline">
-                                <span className="text-lg leading-none">+</span> Add Discount
-                            </button>
-                         ) : (
-                            <div className="flex flex-col gap-2 p-3 bg-gray-50 rounded-lg">
-                               <div className="flex justify-between items-center">
-                                  <span className="text-xs font-bold text-gray-600 uppercase">Discount</span>
-                                  <button onClick={() => { setShowDiscount(false); setDocument({...document, discountValue: 0}); }} className="text-red-400 hover:text-red-600 text-xs">Remove</button>
-                               </div>
-                               <div className="flex gap-2">
-                                  <select value={document.discountType} onChange={(e) => setDocument({...document, discountType: e.target.value})} className="bg-white border border-gray-200 rounded p-1 text-xs outline-none">
-                                     <option value="fixed">Fixed (₹)</option>
-                                     <option value="percentage">Percent (%)</option>
-                                  </select>
-                                  <input type="number" value={document.discountValue} onChange={(e) => setDocument({...document, discountValue: parseFloat(e.target.value) || 0})} className="flex-1 bg-white border border-gray-200 rounded p-1 text-xs outline-none text-right font-bold" />
-                               </div>
-                            </div>
-                         )}
+                      <div className="flex justify-between font-bold text-gray-700">
+                          <span>CGST</span>
+                          <span>₹{totals.cgst.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
                       </div>
-
                       <div className="pt-2">
-                         {document.additionalCharges?.map((charge: AdditionalCharge) => (
-                            <div key={charge.id} className="flex gap-2 items-center mb-2 bg-gray-50 p-2 rounded-lg">
-                               <input type="text" placeholder="e.g. Shipping" value={charge.label} onChange={(e) => updateAdditionalCharge(charge.id, 'label', e.target.value)} className="flex-1 bg-white border border-gray-200 rounded p-1 text-xs outline-none" />
-                               <input type="number" value={charge.amount} onChange={(e) => updateAdditionalCharge(charge.id, 'amount', parseFloat(e.target.value) || 0)} className="w-24 bg-white border border-gray-200 rounded p-1 text-xs outline-none text-right font-bold" />
-                               <button onClick={() => removeAdditionalCharge(charge.id)} className="text-red-400 hover:text-red-600 px-1 font-bold">×</button>
-                            </div>
-                         ))}
-                         <button onClick={addAdditionalCharge} className="text-indigo-600 text-xs font-bold flex items-center gap-1 hover:underline">
-                            <span className="text-lg leading-none">+</span> Add Charges
+                         <button className="text-indigo-600 text-xs font-bold flex items-center gap-1 hover:underline">
+                            <span className="text-lg leading-none">+</span> Add Discounts
                          </button>
                       </div>
-
-                      <div className="flex justify-between items-center pt-4 border-t-2 border-gray-800 mt-4">
+                      <div className="pt-1">
+                         <button className="text-indigo-600 text-xs font-bold flex items-center gap-1 hover:underline">
+                            <span className="text-lg leading-none">+</span> Add Additional Charges
+                         </button>
+                      </div>
+                       <div className="flex items-center gap-2 mt-2">
+                         <input type="checkbox" className="rounded text-indigo-600" />
+                         <span className="text-xs text-gray-500">Summarise Total Quantity</span>
+                      </div>
+                      <div className="flex justify-between items-center pt-4 border-t border-gray-100 mt-2">
                           <span className="font-bold text-lg text-gray-800">Total (INR)</span>
                           <span className="font-bold text-lg text-gray-900">₹{totals.finalTotal.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
                       </div>
@@ -377,39 +621,82 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                </div>
           </div>
 
-          <div className="mb-8 p-4 bg-gray-50 rounded-lg">
-              <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Total in Words</p>
-              <p className="text-sm font-medium text-gray-700 uppercase">{numberToWords(Math.round(totals.finalTotal))}</p>
+          <div className="mb-8">
+             <div className="flex justify-between items-center bg-gray-50 p-3 rounded-lg cursor-pointer">
+                 <span className="font-bold text-gray-800 text-sm">Show Total in Words</span>
+                 <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+             </div>
+             <div className="p-3 text-sm text-gray-500">
+                 <p className="text-xs text-gray-400">Total (in words)</p>
+                 <p>{numberToWords(Math.round(totals.finalTotal))}</p>
+             </div>
+          </div>
+
+          <div className="mb-8">
+             <div className="flex gap-4 border-b border-gray-100 pb-2">
+                 <button className="text-indigo-600 font-bold text-xs flex items-center gap-1 border border-dashed border-indigo-200 px-4 py-2 rounded-lg bg-indigo-50">
+                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                     Add Notes
+                 </button>
+                 <button className="text-indigo-600 font-bold text-xs flex items-center gap-1 border border-dashed border-indigo-200 px-4 py-2 rounded-lg bg-white hover:bg-indigo-50">
+                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                     Add Attachments
+                 </button>
+                  <button className="text-indigo-600 font-bold text-xs flex items-center gap-1 border border-dashed border-indigo-200 px-4 py-2 rounded-lg bg-white hover:bg-indigo-50">
+                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                     Add Contact Details
+                 </button>
+             </div>
           </div>
           
-          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 flex justify-center z-50 shadow-lg">
-            <button onClick={handleSave} className="bg-[#5c2c90] text-white px-12 py-3 rounded-md font-bold text-sm shadow-lg hover:opacity-90 transition">
-                Save {isQuotation ? 'Quotation' : 'Invoice'}
+          <div className="flex items-center gap-3 mb-8 bg-gray-50 p-4 rounded-lg">
+             <input 
+                type="checkbox" 
+                id="showBankDetails"
+                checked={document.showBankDetails}
+                onChange={(e) => setDocument({...document, showBankDetails: e.target.checked})}
+                className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 border-gray-300"
+             />
+             <label htmlFor="showBankDetails" className="text-sm font-medium text-gray-700 select-none cursor-pointer">
+                Include Bank Details in Print/PDF
+             </label>
+          </div>
+          
+          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 flex justify-center z-50 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
+            <button 
+                onClick={handleSave}
+                className="bg-[#E91E63] text-white px-12 py-3 rounded-md font-bold text-sm shadow-lg hover:bg-[#D81B60] transform hover:-translate-y-0.5 transition duration-200"
+            >
+                Save & Continue
             </button>
           </div>
         </div>
       </div>
 
+
+      {/* =====================================================================================
+          PRINT VIEW (Hidden on Screen, Visible on Print)
+          Uses exact specific styling from the Craft Daddy reference image
+         ===================================================================================== */}
       <div id="print-view" className="hidden print:block bg-white text-black p-0 m-0">
-          <div className="flex justify-between items-start mb-10">
+          {/* Header */}
+          <div className="flex justify-between items-start mb-8">
               <div className="flex flex-col gap-1">
-                  <h1 className="text-4xl font-black text-[#5c2c90] mb-6">{isQuotation ? 'Quotation' : 'Tax Invoice'}</h1>
-                  <div className="grid grid-cols-[120px_1fr] gap-y-1.5 text-xs">
-                      <span className="text-gray-500 font-bold uppercase tracking-wider">{isQuotation ? 'Quotation #' : 'Invoice #'}</span>
-                      <span className="font-black text-gray-900">{document.number}</span>
-                      <span className="text-gray-500 font-bold uppercase tracking-wider">Date</span>
-                      <span className="font-black text-gray-900">{new Date(document.date).toLocaleDateString('en-IN', { month: 'short', day: '2-digit', year: 'numeric' })}</span>
-                      {/* Fixed Due Date in Print View */}
-                      <span className="text-gray-500 font-bold uppercase tracking-wider">{isQuotation ? 'Valid Until' : 'Due Date'}</span>
-                      <span className="font-black text-gray-900">{document.dueDate ? new Date(document.dueDate).toLocaleDateString('en-IN', { month: 'short', day: '2-digit', year: 'numeric' }) : 'N/A'}</span>
+                  <h1 className="text-4xl font-medium text-[#5c2c90] mb-4">
+                      {isQuotation ? 'Quotation' : 'Tax Invoice'}
+                  </h1>
+                  <div className="grid grid-cols-[100px_1fr] gap-y-1 text-sm">
+                      <span className="text-gray-500 font-medium">{isQuotation ? 'Quotation No #' : 'Invoice No #'}</span>
+                      <span className="font-bold text-gray-900">{document.number}</span>
+                      
+                      <span className="text-gray-500 font-medium">{isQuotation ? 'Date' : 'Invoice Date'}</span>
+                      <span className="font-bold text-gray-900">{new Date(document.date).toLocaleDateString('en-IN', { month: 'short', day: '2-digit', year: 'numeric' })}</span>
                       
                       {document.customFields?.map((field: CustomField, i: number) => (
-                          field.label && field.value && (
-                            <React.Fragment key={i}>
-                                <span className="text-gray-500 font-bold uppercase tracking-wider">{field.label}</span>
-                                <span className="font-black text-gray-900">{field.value}</span>
-                            </React.Fragment>
-                          )
+                          <React.Fragment key={i}>
+                              <span className="text-gray-500 font-medium">{field.label}</span>
+                              <span className="font-bold text-gray-900">{field.value}</span>
+                          </React.Fragment>
                       ))}
                   </div>
               </div>
@@ -418,89 +705,229 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
               </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-6 mb-8">
-              <div className="bg-[#f8f5ff] p-5 rounded-xl border border-[#e9e2f5]">
-                  <h3 className="text-[#5c2c90] font-black text-xs uppercase tracking-widest mb-3">From</h3>
-                  <div className="text-xs space-y-1.5 text-gray-800">
-                      <p className="font-black text-lg text-[#5c2c90]">{userProfile.companyName}</p>
-                      <p className="font-medium">{userProfile.address.street}, {userProfile.address.city}, {userProfile.address.state} - {userProfile.address.pincode}</p>
-                      <p><span className="font-bold text-gray-500 uppercase text-[10px]">GSTIN:</span> <span className="font-black text-[#5c2c90] ml-2">{userProfile.gstin}</span></p>
+          {/* Billing Boxes */}
+          <div className="grid grid-cols-2 gap-4 mb-6">
+              {/* Billed By */}
+              <div className="bg-[#f8f5ff] p-4 rounded-sm">
+                  <h3 className="text-[#5c2c90] font-bold text-lg mb-2">{isQuotation ? 'Quotation From' : 'Billed By'}</h3>
+                  <div className="text-sm space-y-1 text-gray-800">
+                      <p className="font-bold">{userProfile.companyName}</p>
+                      <p className="whitespace-pre-line">{userProfile.address.street},</p>
+                      <p>{userProfile.address.city},</p>
+                      <p>{userProfile.address.state}, {userProfile.address.country} - {userProfile.address.pincode}</p>
+                      <p className="mt-2"><span className="font-bold">GSTIN:</span> <span className="text-[#5c2c90]">{userProfile.gstin}</span></p>
+                      <p><span className="font-bold">PAN:</span> {userProfile.pan}</p>
                   </div>
               </div>
-              <div className="bg-[#f8f5ff] p-5 rounded-xl border border-[#e9e2f5]">
-                  <h3 className="text-[#5c2c90] font-black text-xs uppercase tracking-widest mb-3">To</h3>
-                  <div className="text-xs space-y-1.5 text-gray-800">
-                      <p className="font-black text-lg text-[#5c2c90] uppercase">{selectedClient?.name}</p>
-                      <p className="font-medium uppercase">{selectedClient?.address.street}, {selectedClient?.address.city}, {selectedClient?.address.state} - {selectedClient?.address.pincode}</p>
-                      <p><span className="font-bold text-gray-500 uppercase text-[10px]">GSTIN:</span> <span className="font-black text-[#5c2c90] ml-2">{selectedClient?.gstin || 'N/A'}</span></p>
+              
+              {/* Billed To */}
+              <div className="bg-[#f8f5ff] p-4 rounded-sm">
+                  <h3 className="text-[#5c2c90] font-bold text-lg mb-2">{isQuotation ? 'Quotation For' : 'Billed To'}</h3>
+                  <div className="text-sm space-y-1 text-gray-800">
+                      <p className="font-bold uppercase">{selectedClient?.name}</p>
+                      <p className="uppercase">{selectedClient?.address.street},</p>
+                      <p className="uppercase">{selectedClient?.address.city}, {selectedClient?.address.state},</p>
+                      <p className="uppercase">{selectedClient?.address.country} - {selectedClient?.address.pincode}</p>
+                      <p className="mt-2"><span className="font-bold">GSTIN:</span> <span className="text-[#5c2c90]">{selectedClient?.gstin || 'N/A'}</span></p>
+                      <p><span className="font-bold">PAN:</span> {selectedClient?.pan || 'N/A'}</p>
                   </div>
               </div>
           </div>
 
-          <table className="w-full mb-10 border-collapse">
+          {/* Supply Place */}
+          <div className="flex justify-between items-center px-4 mb-4 text-sm">
+             <div>Country of Supply: <span className="font-bold text-gray-900">India</span></div>
+             <div>Place of Supply: <span className="font-bold text-[#5c2c90]">{document.placeOfSupply}</span></div>
+          </div>
+
+          {/* Table */}
+          <table className="w-full mb-6">
               <thead className="bg-[#5c2c90] text-white">
                   <tr>
-                      <th className="py-3 px-3 text-left text-[10px] font-black uppercase">Description</th>
-                      <th className="py-3 px-3 text-center text-[10px] font-black uppercase">Qty</th>
-                      <th className="py-3 px-3 text-right text-[10px] font-black uppercase">Rate</th>
-                      <th className="py-3 px-3 text-right text-[10px] font-black uppercase">Total</th>
+                      <th className="py-2 px-3 text-left text-sm font-medium">Item</th>
+                      <th className="py-2 px-3 text-center text-sm font-medium">HSN/SAC</th>
+                      <th className="py-2 px-3 text-center text-sm font-medium">GST Rate</th>
+                      <th className="py-2 px-3 text-center text-sm font-medium">Quantity</th>
+                      <th className="py-2 px-3 text-center text-sm font-medium">Rate</th>
+                      <th className="py-2 px-3 text-right text-sm font-medium">Amount</th>
+                      <th className="py-2 px-3 text-right text-sm font-medium">CGST</th>
+                      <th className="py-2 px-3 text-right text-sm font-medium">SGST</th>
+                      <th className="py-2 px-3 text-right text-sm font-medium">Total</th>
                   </tr>
               </thead>
-              <tbody className="text-xs">
-                  {document.items.map((item: LineItem) => {
+              <tbody className="text-sm">
+                  {document.items.map((item: LineItem, idx: number) => {
                       const calc = calculateLineItem(item, !!isInterState);
                       return (
-                          <tr key={item.id} className="border-b border-gray-100">
-                              <td className="py-4 px-3 font-bold uppercase">{item.description}</td>
-                              <td className="py-4 px-3 text-center">{item.qty}</td>
-                              <td className="py-4 px-3 text-right">₹{item.rate.toLocaleString('en-IN')}</td>
-                              <td className="py-4 px-3 text-right font-black">₹{calc.total.toLocaleString('en-IN')}</td>
+                          <tr key={item.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                              <td className="py-3 px-3">
+                                  <div className="font-bold text-gray-800 uppercase">{item.description}</div>
+                              </td>
+                              <td className="py-3 px-3 text-center text-gray-600 font-medium">{item.hsn}</td>
+                              <td className="py-3 px-3 text-center">{item.taxRate}%</td>
+                              <td className="py-3 px-3 text-center">{item.qty}</td>
+                              <td className="py-3 px-3 text-center">₹{item.rate}</td>
+                              <td className="py-3 px-3 text-right">₹{calc.taxableValue.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+                              <td className="py-3 px-3 text-right">₹{calc.cgst.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+                              <td className="py-3 px-3 text-right">₹{calc.sgst.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+                              <td className="py-3 px-3 text-right font-bold">₹{calc.total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
                           </tr>
                       );
                   })}
               </tbody>
           </table>
 
-          <div className="grid grid-cols-[1.5fr_1fr] gap-12 mb-10">
-              <div className="mb-8 p-4 bg-[#f8f5ff] rounded-xl border border-[#e9e2f5]">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total in words</p>
-                  <p className="text-xs font-black text-[#5c2c90] uppercase">{numberToWords(Math.round(totals.finalTotal))}</p>
+          {/* Lower Section Grid */}
+          <div className="grid grid-cols-[1.4fr_1fr] gap-8 mb-8">
+              {/* Left Column: Words + Bank */}
+              <div>
+                  <div className="mb-6 text-sm">
+                      <p className="font-bold mb-1">Total (in words) : <span className="font-medium uppercase">{numberToWords(Math.round(totals.finalTotal))}</span></p>
+                  </div>
+                  
+                  {/* Bank Details Box - Conditionally Rendered */}
+                  {document.showBankDetails && (
+                    <div className="bg-[#f8f5ff] p-4 rounded-sm">
+                        <h3 className="text-[#5c2c90] font-bold mb-3">Bank Details</h3>
+                        <div className="grid grid-cols-[120px_1fr] gap-y-1 text-sm">
+                            <span className="font-bold text-gray-700">Account Name</span>
+                            <span className="uppercase text-[#5c2c90] font-bold">{document.bankDetails?.accountName}</span>
+
+                            <span className="font-bold text-gray-700">Account Number</span>
+                            <span className="text-[#5c2c90] font-bold">{document.bankDetails?.accountNumber}</span>
+
+                            <span className="font-bold text-gray-700">IFSC</span>
+                            <span className="text-[#5c2c90] font-bold">{document.bankDetails?.ifscCode}</span>
+
+                            <span className="font-bold text-gray-700">Account Type</span>
+                            <span className="text-[#5c2c90] font-bold">{document.bankDetails?.accountType}</span>
+
+                            <span className="font-bold text-gray-700">Bank</span>
+                            <span className="text-[#5c2c90] font-bold uppercase">{document.bankDetails?.bankName}</span>
+                        </div>
+                    </div>
+                  )}
               </div>
 
-              <div className="space-y-3.5">
-                  <div className="flex justify-between text-xs font-bold text-gray-500 uppercase">
-                      <span>Sub Total</span>
-                      <span>₹{totals.taxable.toLocaleString('en-IN')}</span>
-                  </div>
-                  <div className="flex justify-between text-xs font-bold text-gray-500 uppercase">
-                      <span>Integrated Tax</span>
-                      <span>₹{(totals.cgst + totals.sgst + totals.igst).toLocaleString('en-IN')}</span>
-                  </div>
-                  {document.additionalCharges?.map((charge: AdditionalCharge) => (
-                      <div key={charge.id} className="flex justify-between text-xs font-bold text-gray-500 uppercase">
-                          <span>{charge.label}</span>
-                          <span>₹{Number(charge.amount).toLocaleString('en-IN')}</span>
+              {/* Right Column: Totals */}
+              <div>
+                   <div className="space-y-3 text-sm">
+                      <div className="flex justify-between text-blue-600">
+                          <span>Amount</span>
+                          <span>₹{totals.taxable.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
                       </div>
-                  ))}
-                  {totals.discountAmount > 0 && (
-                      <div className="flex justify-between text-xs font-black text-emerald-600 uppercase">
-                          <span>Discount</span>
-                          <span>- ₹{totals.discountAmount.toLocaleString('en-IN')}</span>
+                      <div className="flex justify-between text-gray-800">
+                          <span>CGST</span>
+                          <span>₹{totals.cgst.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
                       </div>
-                  )}
-                  <div className="flex justify-between items-center border-t-2 border-black pt-4 mt-6">
-                      <span className="font-black text-xl text-gray-900 uppercase">Total</span>
-                      <span className="font-black text-2xl text-[#5c2c90]">₹{totals.finalTotal.toLocaleString('en-IN')}</span>
-                  </div>
+                      <div className="flex justify-between text-gray-800">
+                          <span>SGST</span>
+                          <span>₹{totals.sgst.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                      </div>
+                      
+                      {totals.additionalChargesTotal > 0 && (
+                          <div className="flex justify-between text-gray-800">
+                              <span>Additional Charges</span>
+                              <span>₹{totals.additionalChargesTotal.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                          </div>
+                      )}
+                      
+                      {totals.discountAmount > 0 && (
+                          <div className="flex justify-between text-green-600">
+                              <span>Discount</span>
+                              <span>- ₹{totals.discountAmount.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                          </div>
+                      )}
+                      
+                      {document.roundOff !== 0 && (
+                          <div className="flex justify-between text-gray-500 italic">
+                              <span>Round Off</span>
+                              <span>{document.roundOff > 0 ? '+' : ''} ₹{document.roundOff?.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                          </div>
+                      )}
+
+                      <div className="flex justify-between items-center border-t-2 border-black pt-2 mt-4 text-lg font-bold">
+                          <span>Total (INR)</span>
+                          <span>₹{totals.finalTotal.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                      </div>
+                   </div>
               </div>
+          </div>
+
+          {/* Footer Terms */}
+          <div className="mb-12">
+              <h4 className="text-[#5c2c90] font-bold mb-2">Terms and Conditions</h4>
+              <div className="text-xs text-gray-600 space-y-1">
+                 {document.terms?.split('\n').map((term: string, i: number) => (
+                    <p key={i}>{term}</p>
+                 ))}
+              </div>
+          </div>
+
+          {/* Bottom Branding */}
+          <div className="flex justify-between items-end text-[10px] text-gray-500 mt-auto">
+             <p>This is an electronically generated document, no signature is required.</p>
+             <p className="flex items-center gap-1">
+                Powered by <span className="font-bold text-[#5c2c90] flex items-center gap-1"><span className="text-lg leading-none">▲</span> Refrens.com</span>
+             </p>
           </div>
       </div>
 
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
-            @page { margin: 15mm; size: A4; }
-            #print-view { display: block !important; }
-            .no-print, header, .sticky, button { display: none !important; }
+            @page { margin: 10mm; size: A4; }
+            
+            /* RESET EVERYTHING */
+            html, body {
+                height: initial !important;
+                overflow: initial !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                background: white;
+            }
+
+            /* Hide the main app UI elements explicitly */
+            nav, aside, header, .sidebar, .no-print, .sticky, button {
+                display: none !important;
+            }
+
+            /* Hide everything by default to clear the canvas */
+            body > * {
+                visibility: hidden;
+            }
+
+            /* Make sure the root and app wrappers don't clip the content */
+            #root, #root > div {
+                height: auto !important;
+                overflow: visible !important;
+                position: static !important;
+            }
+
+            /* Style the specific printable content */
+            #print-view {
+                visibility: visible !important;
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background-color: white !important;
+                z-index: 9999 !important;
+                display: block !important;
+            }
+
+            /* Make children visible */
+            #print-view * {
+                visibility: visible !important;
+            }
+            
+            /* Typography adjustments for print */
+            body {
+                font-size: 12px;
+                color: black;
+                font-family: sans-serif;
+            }
         }
       `}} />
     </div>
