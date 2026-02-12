@@ -753,7 +753,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
           PRINT VIEW (Hidden on Screen, Visible on Print)
           Uses exact specific styling from the Craft Daddy reference image
          ===================================================================================== */}
-      <div id="print-view" className="hidden print:block bg-white text-black p-0 m-0">
+      <div id="print-view" className="hidden print:block bg-white text-black p-0 m-0 font-sans">
           {/* Header */}
           <div className="flex justify-between items-start mb-8">
               <div className="flex flex-col gap-1">
@@ -816,135 +816,146 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
           </div>
 
           {/* Table */}
-          <table className="w-full mb-6">
+          <table className="w-full mb-4 border-collapse">
               <thead className="bg-[#5c2c90] text-white">
                   <tr>
-                      <th className="py-2 px-3 text-left text-sm font-medium">Item</th>
-                      <th className="py-2 px-3 text-center text-sm font-medium">HSN/SAC</th>
-                      <th className="py-2 px-3 text-center text-sm font-medium">GST Rate</th>
-                      <th className="py-2 px-3 text-center text-sm font-medium">Quantity</th>
-                      <th className="py-2 px-3 text-center text-sm font-medium">Rate</th>
-                      <th className="py-2 px-3 text-right text-sm font-medium">Amount</th>
-                      <th className="py-2 px-3 text-right text-sm font-medium">CGST</th>
-                      <th className="py-2 px-3 text-right text-sm font-medium">SGST</th>
-                      <th className="py-2 px-3 text-right text-sm font-medium">Total</th>
+                      <th className="py-2 px-3 text-left text-sm font-bold uppercase tracking-wider">Item</th>
+                      <th className="py-2 px-3 text-center text-sm font-bold uppercase tracking-wider">HSN/SAC</th>
+                      <th className="py-2 px-3 text-center text-sm font-bold uppercase tracking-wider">GST</th>
+                      <th className="py-2 px-3 text-center text-sm font-bold uppercase tracking-wider">Qty</th>
+                      <th className="py-2 px-3 text-right text-sm font-bold uppercase tracking-wider">Rate</th>
+                      <th className="py-2 px-3 text-right text-sm font-bold uppercase tracking-wider">Amount</th>
                   </tr>
               </thead>
               <tbody className="text-sm">
                   {document.items.map((item: LineItem, idx: number) => {
                       const calc = calculateLineItem(item, !!isInterState);
                       return (
-                          <tr key={item.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                              <td className="py-3 px-3">
-                                  <div className="font-bold text-gray-800 uppercase">{item.description}</div>
+                          <tr key={item.id} className="border-b border-gray-100">
+                              <td className="py-2 px-3">
+                                  <div className="font-bold text-gray-800">{item.description}</div>
                               </td>
-                              <td className="py-3 px-3 text-center text-gray-600 font-medium">{item.hsn}</td>
-                              <td className="py-3 px-3 text-center">{item.taxRate}%</td>
-                              <td className="py-3 px-3 text-center">{item.qty}</td>
-                              <td className="py-3 px-3 text-center">₹{item.rate}</td>
-                              <td className="py-3 px-3 text-right">₹{calc.taxableValue.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
-                              <td className="py-3 px-3 text-right">₹{calc.cgst.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
-                              <td className="py-3 px-3 text-right">₹{calc.sgst.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
-                              <td className="py-3 px-3 text-right font-bold">₹{calc.total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+                              <td className="py-2 px-3 text-center text-gray-600">{item.hsn}</td>
+                              <td className="py-2 px-3 text-center">{item.taxRate}%</td>
+                              <td className="py-2 px-3 text-center font-medium">{item.qty}</td>
+                              <td className="py-2 px-3 text-right">₹{item.rate}</td>
+                              <td className="py-2 px-3 text-right font-bold">₹{calc.total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
                           </tr>
                       );
                   })}
               </tbody>
           </table>
 
-          {/* Lower Section Grid */}
-          <div className="grid grid-cols-[1.4fr_1fr] gap-8 mb-8">
-              {/* Left Column: Words + Bank */}
-              <div>
-                  <div className="mb-6 text-sm">
-                      <p className="font-bold mb-1">Total (in words) : <span className="font-medium uppercase">{numberToWords(Math.round(totals.finalTotal))}</span></p>
-                  </div>
-                  
-                  {/* Bank Details Box - Conditionally Rendered */}
+          {/* Total in Words - Full Width Strip */}
+          <div className="mb-8 border-b border-t border-gray-100 py-3 bg-gray-50/30">
+             <p className="text-sm text-gray-700">Total in words: <span className="font-bold text-gray-900 capitalize italic">{numberToWords(Math.round(totals.finalTotal))}</span></p>
+          </div>
+
+          {/* Lower Section Grid - Optimized Layout */}
+          <div className="grid grid-cols-2 gap-12 mb-8 items-start">
+              {/* Left Column: Bank Details & Terms */}
+              <div className="space-y-8">
+                  {/* Bank Details */}
                   {document.showBankDetails && (
-                    <div className="bg-[#f8f5ff] p-4 rounded-sm">
-                        <h3 className="text-[#5c2c90] font-bold mb-3">Bank Details</h3>
-                        <div className="grid grid-cols-[120px_1fr] gap-y-1 text-sm">
-                            <span className="font-bold text-gray-700">Account Name</span>
-                            <span className="uppercase text-[#5c2c90] font-bold">{document.bankDetails?.accountName}</span>
+                    <div className="bg-gray-50 p-4 rounded border border-gray-100">
+                        <h3 className="text-[#5c2c90] font-bold text-sm mb-3 border-b border-gray-200 pb-2">BANK DETAILS</h3>
+                        <div className="grid grid-cols-[100px_1fr] gap-y-1 text-sm">
+                            <span className="text-gray-500">Account Name</span>
+                            <span className="font-bold text-gray-900">{document.bankDetails?.accountName}</span>
 
-                            <span className="font-bold text-gray-700">Account Number</span>
-                            <span className="text-[#5c2c90] font-bold">{document.bankDetails?.accountNumber}</span>
+                            <span className="text-gray-500">Account No.</span>
+                            <span className="font-bold text-gray-900">{document.bankDetails?.accountNumber}</span>
 
-                            <span className="font-bold text-gray-700">IFSC</span>
-                            <span className="text-[#5c2c90] font-bold">{document.bankDetails?.ifscCode}</span>
+                            <span className="text-gray-500">IFSC Code</span>
+                            <span className="font-bold text-gray-900">{document.bankDetails?.ifscCode}</span>
 
-                            <span className="font-bold text-gray-700">Account Type</span>
-                            <span className="text-[#5c2c90] font-bold">{document.bankDetails?.accountType}</span>
-
-                            <span className="font-bold text-gray-700">Bank</span>
-                            <span className="text-[#5c2c90] font-bold uppercase">{document.bankDetails?.bankName}</span>
+                            <span className="text-gray-500">Bank Name</span>
+                            <span className="font-bold text-gray-900">{document.bankDetails?.bankName}</span>
+                            
+                            <span className="text-gray-500">Branch</span>
+                            <span className="font-bold text-gray-900">{document.bankDetails?.branchName || '-'}</span>
                         </div>
                     </div>
                   )}
+
+                  {/* Terms */}
+                  <div>
+                      <h4 className="font-bold text-gray-800 text-sm mb-2 uppercase">Terms and Conditions</h4>
+                      <div className="text-xs text-gray-500 space-y-1 leading-relaxed">
+                         {document.terms?.split('\n').map((term: string, i: number) => (
+                            <p key={i} className="flex gap-2">
+                                <span className="text-gray-400">{i+1}.</span>
+                                <span>{term.replace(/^\d+\.\s*/, '')}</span>
+                            </p>
+                         ))}
+                      </div>
+                  </div>
               </div>
 
-              {/* Right Column: Totals */}
-              <div>
-                   <div className="space-y-3 text-sm">
-                      <div className="flex justify-between text-blue-600">
-                          <span>Amount</span>
-                          <span>₹{totals.taxable.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+              {/* Right Column: Calculations */}
+              <div className="flex flex-col">
+                   <div className="space-y-3 text-sm border-b border-gray-200 pb-4">
+                      <div className="flex justify-between text-gray-600">
+                          <span>Taxable Amount</span>
+                          <span className="font-medium">₹{totals.taxable.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
                       </div>
-                      <div className="flex justify-between text-gray-800">
+                      <div className="flex justify-between text-gray-600">
                           <span>CGST</span>
-                          <span>₹{totals.cgst.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                          <span className="font-medium">₹{totals.cgst.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
                       </div>
-                      <div className="flex justify-between text-gray-800">
+                      <div className="flex justify-between text-gray-600">
                           <span>SGST</span>
-                          <span>₹{totals.sgst.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                          <span className="font-medium">₹{totals.sgst.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
                       </div>
                       
+                      {/* Optional IGST */}
+                      {totals.igst > 0 && (
+                          <div className="flex justify-between text-gray-600">
+                              <span>IGST</span>
+                              <span className="font-medium">₹{totals.igst.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                          </div>
+                      )}
+
                       {totals.additionalChargesTotal > 0 && (
-                          <div className="flex justify-between text-gray-800">
-                              <span>Additional Charges</span>
-                              <span>₹{totals.additionalChargesTotal.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                          <div className="flex justify-between text-gray-600">
+                              <span>Addl. Charges</span>
+                              <span className="font-medium">₹{totals.additionalChargesTotal.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
                           </div>
                       )}
                       
                       {totals.discountAmount > 0 && (
-                          <div className="flex justify-between text-green-600">
+                          <div className="flex justify-between text-emerald-600">
                               <span>Discount</span>
-                              <span>- ₹{totals.discountAmount.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                              <span className="font-medium">- ₹{totals.discountAmount.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
                           </div>
                       )}
                       
                       {document.roundOff !== 0 && (
-                          <div className="flex justify-between text-gray-500 italic">
+                          <div className="flex justify-between text-gray-400 italic">
                               <span>Round Off</span>
                               <span>{document.roundOff > 0 ? '+' : ''} ₹{document.roundOff?.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
                           </div>
                       )}
+                   </div>
 
-                      <div className="flex justify-between items-center border-t-2 border-black pt-2 mt-4 text-lg font-bold">
-                          <span>Total (INR)</span>
-                          <span>₹{totals.finalTotal.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
-                      </div>
+                   <div className="flex justify-between items-center py-4 bg-[#f8f5ff] -mx-4 px-4 mt-2 rounded">
+                       <span className="text-[#5c2c90] font-bold text-lg">Total Amount</span>
+                       <span className="text-[#5c2c90] font-bold text-xl">₹{totals.finalTotal.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                   </div>
+                   
+                   <div className="mt-12 text-right">
+                       <p className="font-bold text-gray-900 mb-8">{userProfile.companyName}</p>
+                       <p className="text-xs text-gray-400 font-medium uppercase tracking-wider border-t border-gray-200 inline-block pt-2 px-8">Authorized Signatory</p>
                    </div>
               </div>
           </div>
 
-          {/* Footer Terms */}
-          <div className="mb-12">
-              <h4 className="text-[#5c2c90] font-bold mb-2">Terms and Conditions</h4>
-              <div className="text-xs text-gray-600 space-y-1">
-                 {document.terms?.split('\n').map((term: string, i: number) => (
-                    <p key={i}>{term}</p>
-                 ))}
-              </div>
-          </div>
-
-          {/* Bottom Branding */}
-          <div className="flex justify-between items-end text-[10px] text-gray-500 mt-auto">
-             <p>This is an electronically generated document, no signature is required.</p>
-             <p className="flex items-center gap-1">
-                Powered by <span className="font-bold text-[#5c2c90] flex items-center gap-1"><span className="text-lg leading-none">▲</span> Refrens.com</span>
-             </p>
+          {/* Footer Branding */}
+          <div className="mt-auto pt-8 pb-4 text-center">
+             <p className="text-xs text-gray-500 mb-2">This is an electronically generated document, no signature is required.</p>
+             <div className="text-[10px] text-gray-400 flex items-center justify-center gap-1">
+                Powered by <span className="font-bold text-[#5c2c90]">BOS-Cloud</span>
+             </div>
           </div>
       </div>
 
