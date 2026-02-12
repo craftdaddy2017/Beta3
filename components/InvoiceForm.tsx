@@ -49,7 +49,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
       placeOfSupply: `${userProfile.address.state} (${userProfile.address.stateCode})`,
       bankDetails: userProfile.bankAccounts[0],
       notes: '',
-      terms: mode === 'invoice' ? '1. Subject to local jurisdiction.\n2. Payment within due date.' : '1. Valid for 30 days.\n2. Subject to final agreement.',
+      terms: mode === 'invoice' ? '1. Subject to local jurisdiction.\n2. Payment within due date.' : 'Valid for 30 days.',
       customFields: [{ label: 'P.O. Number', value: '' }],
       discountType: 'fixed',
       discountValue: 0,
@@ -220,6 +220,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                     <label className="text-gray-500 font-semibold">Date</label>
                     <input type="date" value={document.date} onChange={(e) => setDocument({...document, date: e.target.value})} className="w-full font-medium text-gray-900 border-b border-gray-200 focus:border-indigo-600 outline-none py-1 bg-transparent" />
                 </div>
+                {/* Fixed Due Date UI */}
                 <div className="grid grid-cols-[110px_1fr] items-center gap-2">
                     <label className="text-gray-500 font-semibold">{isQuotation ? 'Valid Until' : 'Due Date'}</label>
                     <input type="date" value={document.dueDate} onChange={(e) => setDocument({...document, dueDate: e.target.value})} className="w-full font-medium text-gray-900 border-b border-gray-200 focus:border-indigo-600 outline-none py-1 bg-transparent" />
@@ -389,214 +390,117 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
         </div>
       </div>
 
-      {/* --- REFINED PRINT VIEW (MATCHES SCREENSHOT) --- */}
-      <div id="print-view" className="hidden print:block bg-white text-black p-0 m-0 w-full min-h-screen">
-          <div className="max-w-[100%] mx-auto p-12">
-              
-              {/* Header: Title and Identity */}
-              <div className="flex justify-between items-start mb-12">
-                  <div className="flex flex-col">
-                      <h1 className="text-6xl font-black text-[#5c2c90] mb-8 leading-tight">{isQuotation ? 'Quotation' : 'Tax Invoice'}</h1>
-                      <div className="grid grid-cols-[140px_1fr] gap-y-2 text-sm text-gray-700">
-                          <span className="font-bold uppercase tracking-wider text-gray-400">{isQuotation ? 'Quotation No' : 'Invoice No'}</span>
-                          <span className="font-black text-gray-900">#{document.number}</span>
-                          
-                          <span className="font-bold uppercase tracking-wider text-gray-400">Date</span>
-                          <span className="font-black text-gray-900">{new Date(document.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
-                          
-                          {document.customFields?.map((field: CustomField, i: number) => (
-                              field.label && field.value && (
-                                <React.Fragment key={i}>
-                                    <span className="font-bold uppercase tracking-wider text-gray-400">{field.label}</span>
-                                    <span className="font-black text-gray-900">{field.value}</span>
-                                </React.Fragment>
-                              )
-                          ))}
-                      </div>
-                  </div>
-                  <div className="w-72 pt-2">
-                      <img src={userProfile.logoUrl || CRAFT_DADDY_LOGO_SVG} className="max-w-full object-contain ml-auto" alt="Logo" />
-                  </div>
-              </div>
-
-              {/* Billed From/To Boxes */}
-              <div className="grid grid-cols-2 gap-10 mb-10">
-                  <div className="bg-[#f8f5ff] p-7 rounded-2xl border border-[#e9e2f5]">
-                      <h3 className="text-[#5c2c90] font-black text-xs uppercase tracking-widest mb-5">{isQuotation ? 'Quotation From' : 'Billed By'}</h3>
-                      <div className="text-xs space-y-2 text-gray-800">
-                          <p className="font-black text-xl text-[#5c2c90] leading-tight">{userProfile.companyName}</p>
-                          <p className="font-medium text-gray-500 leading-relaxed text-sm">{userProfile.address.street}, {userProfile.address.city}, {userProfile.address.state}, India - {userProfile.address.pincode}</p>
-                          <div className="pt-3 space-y-1">
-                            <p><span className="font-bold text-gray-400 uppercase text-[10px]">GSTIN:</span> <span className="font-black text-[#5c2c90] ml-3 text-sm">{userProfile.gstin}</span></p>
-                            <p><span className="font-bold text-gray-400 uppercase text-[10px]">PAN:</span> <span className="font-bold ml-6 text-sm">{userProfile.pan}</span></p>
-                          </div>
-                      </div>
-                  </div>
-                  <div className="bg-[#f8f5ff] p-7 rounded-2xl border border-[#e9e2f5]">
-                      <h3 className="text-[#5c2c90] font-black text-xs uppercase tracking-widest mb-5">{isQuotation ? 'Quotation For' : 'Billed To'}</h3>
-                      <div className="text-xs space-y-2 text-gray-800">
-                          <p className="font-black text-xl text-[#5c2c90] uppercase leading-tight">{selectedClient?.name}</p>
-                          <p className="font-medium text-gray-500 uppercase leading-relaxed text-sm">{selectedClient?.address.street}, {selectedClient?.address.city}, {selectedClient?.address.state}, India - {selectedClient?.address.pincode}</p>
-                          <div className="pt-3 space-y-1">
-                            <p><span className="font-bold text-gray-400 uppercase text-[10px]">GSTIN:</span> <span className="font-black text-[#5c2c90] ml-3 text-sm">{selectedClient?.gstin || 'N/A'}</span></p>
-                            <p><span className="font-bold text-gray-400 uppercase text-[10px]">PAN:</span> <span className="font-bold ml-6 text-sm">{selectedClient?.pan || 'N/A'}</span></p>
-                          </div>
-                      </div>
-                  </div>
-              </div>
-
-              {/* Supply Details Row */}
-              <div className="flex justify-between items-center text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-5 px-1">
-                  <div>Country of Supply: <span className="text-gray-900 ml-2">India</span></div>
-                  <div>Place of Supply: <span className="text-[#5c2c90] ml-2">{document.placeOfSupply}</span></div>
-              </div>
-
-              {/* Main Items Table */}
-              <div className="mb-12 overflow-hidden rounded-xl border border-[#e9e2f5]">
-                <table className="w-full border-collapse">
-                    <thead className="bg-[#5c2c90] text-white">
-                        <tr>
-                            <th className="py-4 px-4 text-left text-[11px] font-black uppercase w-[35%]">Item</th>
-                            <th className="py-4 px-2 text-center text-[11px] font-black uppercase w-[10%]">GST Rate</th>
-                            <th className="py-4 px-2 text-center text-[11px] font-black uppercase w-[10%]">Quantity</th>
-                            <th className="py-4 px-2 text-right text-[11px] font-black uppercase w-[12%]">Rate</th>
-                            <th className="py-4 px-2 text-right text-[11px] font-black uppercase w-[13%]">Amount</th>
-                            <th className="py-4 px-2 text-right text-[11px] font-black uppercase w-[10%]">CGST</th>
-                            <th className="py-4 px-2 text-right text-[11px] font-black uppercase w-[10%]">SGST</th>
-                            <th className="py-4 px-4 text-right text-[11px] font-black uppercase w-[15%]">Total</th>
-                        </tr>
-                    </thead>
-                    <tbody className="text-[12px]">
-                        {document.items.map((item: LineItem) => {
-                            const calc = calculateLineItem(item, !!isInterState);
-                            return (
-                                <tr key={item.id} className="border-b border-gray-50 align-top">
-                                    <td className="py-6 px-4">
-                                        <p className="font-black uppercase text-gray-900 mb-1 text-sm">{item.description}</p>
-                                        {item.hsn && <p className="text-[10px] text-gray-400 font-bold uppercase">(HSN/SAC: {item.hsn})</p>}
-                                    </td>
-                                    <td className="py-6 px-2 text-center font-bold text-gray-600">{item.taxRate}%</td>
-                                    <td className="py-6 px-2 text-center font-bold text-gray-600">{item.qty}</td>
-                                    <td className="py-6 px-2 text-right font-bold text-gray-600">₹{item.rate.toLocaleString('en-IN')}</td>
-                                    <td className="py-6 px-2 text-right font-bold text-gray-600">₹{calc.taxableValue.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
-                                    <td className="py-6 px-2 text-right text-gray-400">₹{calc.cgst.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
-                                    <td className="py-6 px-2 text-right text-gray-400">₹{calc.sgst.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
-                                    <td className="py-6 px-4 text-right font-black text-gray-900 text-sm">₹{calc.total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
-              </div>
-
-              {/* Totals and Bank Info Section */}
-              <div className="grid grid-cols-[1.6fr_1fr] gap-16 mb-12 items-start">
-                  <div className="space-y-8">
-                      <div className="p-5 bg-white rounded-2xl border-l-8 border-[#5c2c90] shadow-sm text-gray-800">
-                          <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2">Total (in words)</p>
-                          <p className="text-sm font-black text-gray-900 uppercase leading-relaxed">{numberToWords(Math.round(totals.finalTotal))}</p>
-                      </div>
-
-                      {document.showBankDetails && (
-                        <div className="bg-[#f8f5ff] p-7 rounded-2xl border border-[#e9e2f5]">
-                            <h3 className="text-[#5c2c90] font-black text-[12px] uppercase tracking-widest mb-6 border-b border-[#e9e2f5] pb-3">Bank Details</h3>
-                            <div className="grid grid-cols-[130px_1fr] gap-y-3 text-[12px]">
-                                <span className="text-gray-400 font-bold uppercase">Account Name</span>
-                                <span className="font-black text-[#5c2c90] uppercase">{document.bankDetails?.accountName}</span>
-                                
-                                <span className="text-gray-400 font-bold uppercase">Account Number</span>
-                                <span className="font-black text-gray-800 text-sm tracking-wide">{document.bankDetails?.accountNumber}</span>
-                                
-                                <span className="text-gray-400 font-bold uppercase">IFSC</span>
-                                <span className="font-black text-[#5c2c90] uppercase tracking-widest">{document.bankDetails?.ifscCode}</span>
-                                
-                                <span className="text-gray-400 font-bold uppercase">Account Type</span>
-                                <span className="font-bold text-gray-600 uppercase">{document.bankDetails?.accountType}</span>
-                                
-                                <span className="text-gray-400 font-bold uppercase">Bank</span>
-                                <span className="font-black text-gray-800 uppercase text-sm">{document.bankDetails?.bankName}</span>
-                            </div>
-                        </div>
-                      )}
+      <div id="print-view" className="hidden print:block bg-white text-black p-0 m-0">
+          <div className="flex justify-between items-start mb-10">
+              <div className="flex flex-col gap-1">
+                  <h1 className="text-4xl font-black text-[#5c2c90] mb-6">{isQuotation ? 'Quotation' : 'Tax Invoice'}</h1>
+                  <div className="grid grid-cols-[120px_1fr] gap-y-1.5 text-xs">
+                      <span className="text-gray-500 font-bold uppercase tracking-wider">{isQuotation ? 'Quotation #' : 'Invoice #'}</span>
+                      <span className="font-black text-gray-900">{document.number}</span>
+                      <span className="text-gray-500 font-bold uppercase tracking-wider">Date</span>
+                      <span className="font-black text-gray-900">{new Date(document.date).toLocaleDateString('en-IN', { month: 'short', day: '2-digit', year: 'numeric' })}</span>
+                      {/* Fixed Due Date in Print View */}
+                      <span className="text-gray-500 font-bold uppercase tracking-wider">{isQuotation ? 'Valid Until' : 'Due Date'}</span>
+                      <span className="font-black text-gray-900">{document.dueDate ? new Date(document.dueDate).toLocaleDateString('en-IN', { month: 'short', day: '2-digit', year: 'numeric' }) : 'N/A'}</span>
                       
-                      {/* Terms and Conditions */}
-                      <div className="text-[11px] text-gray-500 leading-relaxed pt-6 border-t border-gray-100">
-                          <h4 className="font-black text-gray-900 uppercase mb-3 tracking-widest text-xs">Terms and Conditions</h4>
-                          <div className="whitespace-pre-line font-medium">{document.terms}</div>
-                      </div>
-                  </div>
-
-                  <div className="space-y-5 bg-white p-2">
-                      <div className="flex justify-between text-sm font-bold text-blue-500 uppercase">
-                          <span>Amount</span>
-                          <span>₹{totals.taxable.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
-                      </div>
-                      <div className="flex justify-between text-sm font-bold text-gray-400 uppercase">
-                          <span>CGST</span>
-                          <span>₹{totals.cgst.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
-                      </div>
-                      <div className="flex justify-between text-sm font-bold text-gray-400 uppercase">
-                          <span>SGST</span>
-                          <span>₹{totals.sgst.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
-                      </div>
-                      
-                      {document.additionalCharges?.map((charge: AdditionalCharge) => (
-                          <div key={charge.id} className="flex justify-between text-sm font-bold text-gray-400 uppercase">
-                              <span>{charge.label || 'Charge'}</span>
-                              <span>₹{Number(charge.amount).toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
-                          </div>
+                      {document.customFields?.map((field: CustomField, i: number) => (
+                          field.label && field.value && (
+                            <React.Fragment key={i}>
+                                <span className="text-gray-500 font-bold uppercase tracking-wider">{field.label}</span>
+                                <span className="font-black text-gray-900">{field.value}</span>
+                            </React.Fragment>
+                          )
                       ))}
-
-                      {document.roundOff !== 0 && (
-                        <div className="flex justify-between text-sm font-bold text-gray-400 uppercase">
-                            <span>Round Off</span>
-                            <span>₹{document.roundOff?.toLocaleString('en-IN')}</span>
-                        </div>
-                      )}
-                      
-                      <div className="flex justify-between items-center border-t-8 border-black pt-7 mt-10 bg-gray-50/70 p-6 rounded-2xl">
-                          <span className="font-black text-xl text-gray-900 uppercase tracking-tight">Total (INR)</span>
-                          <span className="font-black text-3xl text-[#5c2c90]">₹{totals.finalTotal.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
-                      </div>
                   </div>
               </div>
+              <div className="w-64">
+                  <img src={userProfile.logoUrl || CRAFT_DADDY_LOGO_SVG} className="max-w-full object-contain" alt="Logo" />
+              </div>
+          </div>
 
-              {/* Bottom Footer Section */}
-              <div className="mt-24 pt-10 border-t border-gray-100 flex flex-col gap-10 text-[11px] font-bold text-gray-400 uppercase tracking-widest">
-                 <p className="text-center italic opacity-70">This is an electronically generated document, no signature is required.</p>
-                 <div className="flex justify-between items-end border-t border-gray-50 pt-4">
-                    <p>Generated on {new Date().toLocaleDateString('en-IN', { dateStyle: 'full' })}</p>
-                    <div className="flex items-center gap-2 text-[#5c2c90]">
-                        <span>Powered by</span>
-                        <span className="font-black text-base">{userProfile.companyName || 'Enterprise OS'}</span>
-                    </div>
-                 </div>
+          <div className="grid grid-cols-2 gap-6 mb-8">
+              <div className="bg-[#f8f5ff] p-5 rounded-xl border border-[#e9e2f5]">
+                  <h3 className="text-[#5c2c90] font-black text-xs uppercase tracking-widest mb-3">From</h3>
+                  <div className="text-xs space-y-1.5 text-gray-800">
+                      <p className="font-black text-lg text-[#5c2c90]">{userProfile.companyName}</p>
+                      <p className="font-medium">{userProfile.address.street}, {userProfile.address.city}, {userProfile.address.state} - {userProfile.address.pincode}</p>
+                      <p><span className="font-bold text-gray-500 uppercase text-[10px]">GSTIN:</span> <span className="font-black text-[#5c2c90] ml-2">{userProfile.gstin}</span></p>
+                  </div>
+              </div>
+              <div className="bg-[#f8f5ff] p-5 rounded-xl border border-[#e9e2f5]">
+                  <h3 className="text-[#5c2c90] font-black text-xs uppercase tracking-widest mb-3">To</h3>
+                  <div className="text-xs space-y-1.5 text-gray-800">
+                      <p className="font-black text-lg text-[#5c2c90] uppercase">{selectedClient?.name}</p>
+                      <p className="font-medium uppercase">{selectedClient?.address.street}, {selectedClient?.address.city}, {selectedClient?.address.state} - {selectedClient?.address.pincode}</p>
+                      <p><span className="font-bold text-gray-500 uppercase text-[10px]">GSTIN:</span> <span className="font-black text-[#5c2c90] ml-2">{selectedClient?.gstin || 'N/A'}</span></p>
+                  </div>
+              </div>
+          </div>
+
+          <table className="w-full mb-10 border-collapse">
+              <thead className="bg-[#5c2c90] text-white">
+                  <tr>
+                      <th className="py-3 px-3 text-left text-[10px] font-black uppercase">Description</th>
+                      <th className="py-3 px-3 text-center text-[10px] font-black uppercase">Qty</th>
+                      <th className="py-3 px-3 text-right text-[10px] font-black uppercase">Rate</th>
+                      <th className="py-3 px-3 text-right text-[10px] font-black uppercase">Total</th>
+                  </tr>
+              </thead>
+              <tbody className="text-xs">
+                  {document.items.map((item: LineItem) => {
+                      const calc = calculateLineItem(item, !!isInterState);
+                      return (
+                          <tr key={item.id} className="border-b border-gray-100">
+                              <td className="py-4 px-3 font-bold uppercase">{item.description}</td>
+                              <td className="py-4 px-3 text-center">{item.qty}</td>
+                              <td className="py-4 px-3 text-right">₹{item.rate.toLocaleString('en-IN')}</td>
+                              <td className="py-4 px-3 text-right font-black">₹{calc.total.toLocaleString('en-IN')}</td>
+                          </tr>
+                      );
+                  })}
+              </tbody>
+          </table>
+
+          <div className="grid grid-cols-[1.5fr_1fr] gap-12 mb-10">
+              <div className="mb-8 p-4 bg-[#f8f5ff] rounded-xl border border-[#e9e2f5]">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total in words</p>
+                  <p className="text-xs font-black text-[#5c2c90] uppercase">{numberToWords(Math.round(totals.finalTotal))}</p>
+              </div>
+
+              <div className="space-y-3.5">
+                  <div className="flex justify-between text-xs font-bold text-gray-500 uppercase">
+                      <span>Sub Total</span>
+                      <span>₹{totals.taxable.toLocaleString('en-IN')}</span>
+                  </div>
+                  <div className="flex justify-between text-xs font-bold text-gray-500 uppercase">
+                      <span>Integrated Tax</span>
+                      <span>₹{(totals.cgst + totals.sgst + totals.igst).toLocaleString('en-IN')}</span>
+                  </div>
+                  {document.additionalCharges?.map((charge: AdditionalCharge) => (
+                      <div key={charge.id} className="flex justify-between text-xs font-bold text-gray-500 uppercase">
+                          <span>{charge.label}</span>
+                          <span>₹{Number(charge.amount).toLocaleString('en-IN')}</span>
+                      </div>
+                  ))}
+                  {totals.discountAmount > 0 && (
+                      <div className="flex justify-between text-xs font-black text-emerald-600 uppercase">
+                          <span>Discount</span>
+                          <span>- ₹{totals.discountAmount.toLocaleString('en-IN')}</span>
+                      </div>
+                  )}
+                  <div className="flex justify-between items-center border-t-2 border-black pt-4 mt-6">
+                      <span className="font-black text-xl text-gray-900 uppercase">Total</span>
+                      <span className="font-black text-2xl text-[#5c2c90]">₹{totals.finalTotal.toLocaleString('en-IN')}</span>
+                  </div>
               </div>
           </div>
       </div>
 
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
-            @page { 
-              margin: 0; 
-              size: A4; 
-            }
-            body { 
-              background: white; 
-              -webkit-print-color-adjust: exact !important; 
-              print-color-adjust: exact !important; 
-            }
-            .print\\:hidden { display: none !important; }
-            #print-view { 
-              display: block !important; 
-              position: static; 
-              width: 100%; 
-              padding: 0;
-              margin: 0;
-              background: white !important;
-            }
-            .max-w-[100%] { max-width: 100% !important; }
-            * { overflow: visible !important; }
+            @page { margin: 15mm; size: A4; }
+            #print-view { display: block !important; }
+            .no-print, header, .sticky, button { display: none !important; }
         }
       `}} />
     </div>
