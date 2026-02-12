@@ -1002,11 +1002,13 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
             }
 
             /* Reset layout containers to allow flow */
-            #root, .h-screen, .min-h-screen, .flex-1, .relative {
+            #root, .h-screen, .min-h-screen, .flex-1, .relative, .pb-32 {
                 display: block !important;
                 height: auto !important;
+                min-height: 0 !important;
                 overflow: visible !important;
                 position: static !important;
+                padding-bottom: 0 !important;
             }
 
             /* Print View Display */
@@ -1015,6 +1017,8 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                 width: 100% !important;
                 height: auto !important;
                 position: static !important;
+                margin: 0 !important;
+                padding: 0 !important;
             }
             
             /* Pagination control */
