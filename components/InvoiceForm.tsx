@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Invoice, 
-  Quotation,
+  Quotation, 
   Client, 
   UserBusinessProfile, 
   LineItem, 
@@ -801,7 +801,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                       ))}
                   </div>
               </div>
-              <div className="w-64">
+              <div className="w-64 flex justify-end">
                   <img src={userProfile.logoUrl || CRAFT_DADDY_LOGO_SVG} className="max-w-full object-contain" alt="Logo" />
               </div>
           </div>
@@ -1002,7 +1002,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
             }
 
             /* Reset layout containers to allow flow */
-            #root, .flex, .h-screen, .min-h-screen, .flex-1, .relative {
+            #root, .h-screen, .min-h-screen, .flex-1, .relative {
                 display: block !important;
                 height: auto !important;
                 overflow: visible !important;
