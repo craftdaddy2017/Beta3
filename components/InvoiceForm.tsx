@@ -781,7 +781,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
          ===================================================================================== */}
       <div id="print-view" className="hidden print:block bg-white text-black p-0 m-0 font-sans">
           {/* Header */}
-          <div className="flex justify-between items-start mb-8">
+          <div className="flex justify-between items-start mb-6">
               <div className="flex flex-col gap-1">
                   <h1 className="text-4xl font-medium text-[#5c2c90] mb-4">
                       {isQuotation ? 'Quotation' : 'Tax Invoice'}
@@ -807,9 +807,9 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
           </div>
 
           {/* Billing Boxes */}
-          <div className="grid grid-cols-2 gap-4 mb-6">
+          <div className="grid grid-cols-2 gap-4 mb-4">
               {/* Billed By */}
-              <div className="bg-[#f8f5ff] p-4 rounded-sm">
+              <div className="bg-[#f8f5ff] p-3 rounded-sm">
                   <h3 className="text-[#5c2c90] font-bold text-lg mb-2">{isQuotation ? 'Quotation From' : 'Billed By'}</h3>
                   <div className="text-sm space-y-1 text-gray-800">
                       <p className="font-bold">{userProfile.companyName}</p>
@@ -822,7 +822,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
               </div>
               
               {/* Billed To */}
-              <div className="bg-[#f8f5ff] p-4 rounded-sm">
+              <div className="bg-[#f8f5ff] p-3 rounded-sm">
                   <h3 className="text-[#5c2c90] font-bold text-lg mb-2">{isQuotation ? 'Quotation For' : 'Billed To'}</h3>
                   <div className="text-sm space-y-1 text-gray-800">
                       <p className="font-bold uppercase">{selectedClient?.name}</p>
@@ -836,7 +836,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
           </div>
 
           {/* Supply Place */}
-          <div className="flex justify-between items-center px-4 mb-4 text-sm">
+          <div className="flex justify-between items-center px-2 mb-4 text-sm">
              <div>Country of Supply: <span className="font-bold text-gray-900">India</span></div>
              <div>Place of Supply: <span className="font-bold text-[#5c2c90]">{document.placeOfSupply}</span></div>
           </div>
@@ -845,12 +845,12 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
           <table className="w-full mb-4 border-collapse">
               <thead className="bg-[#5c2c90] text-white">
                   <tr>
-                      <th className="py-2 px-3 text-left text-sm font-bold uppercase tracking-wider">Item</th>
-                      <th className="py-2 px-3 text-center text-sm font-bold uppercase tracking-wider">HSN/SAC</th>
-                      <th className="py-2 px-3 text-center text-sm font-bold uppercase tracking-wider">GST</th>
-                      <th className="py-2 px-3 text-center text-sm font-bold uppercase tracking-wider">Qty</th>
-                      <th className="py-2 px-3 text-right text-sm font-bold uppercase tracking-wider">Rate</th>
-                      <th className="py-2 px-3 text-right text-sm font-bold uppercase tracking-wider">Amount</th>
+                      <th className="py-1 px-2 text-left text-sm font-bold uppercase tracking-wider">Item</th>
+                      <th className="py-1 px-2 text-center text-sm font-bold uppercase tracking-wider">HSN/SAC</th>
+                      <th className="py-1 px-2 text-center text-sm font-bold uppercase tracking-wider">GST</th>
+                      <th className="py-1 px-2 text-center text-sm font-bold uppercase tracking-wider">Qty</th>
+                      <th className="py-1 px-2 text-right text-sm font-bold uppercase tracking-wider">Rate</th>
+                      <th className="py-1 px-2 text-right text-sm font-bold uppercase tracking-wider">Amount</th>
                   </tr>
               </thead>
               <tbody className="text-sm">
@@ -858,14 +858,14 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                       const calc = calculateLineItem(item, !!isInterState);
                       return (
                           <tr key={item.id} className="border-b border-gray-100 break-inside-avoid page-break-inside-avoid">
-                              <td className="py-2 px-3">
+                              <td className="py-1 px-2">
                                   <div className="font-bold text-gray-800">{item.description}</div>
                               </td>
-                              <td className="py-2 px-3 text-center text-gray-600">{item.hsn}</td>
-                              <td className="py-2 px-3 text-center">{item.taxRate}%</td>
-                              <td className="py-2 px-3 text-center font-medium">{item.qty}</td>
-                              <td className="py-2 px-3 text-right">₹{item.rate}</td>
-                              <td className="py-2 px-3 text-right font-bold">₹{calc.total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+                              <td className="py-1 px-2 text-center text-gray-600">{item.hsn}</td>
+                              <td className="py-1 px-2 text-center">{item.taxRate}%</td>
+                              <td className="py-1 px-2 text-center font-medium">{item.qty}</td>
+                              <td className="py-1 px-2 text-right">₹{item.rate}</td>
+                              <td className="py-1 px-2 text-right font-bold">₹{calc.total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
                           </tr>
                       );
                   })}
@@ -873,14 +873,14 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
           </table>
 
           {/* Total in Words - Full Width Strip */}
-          <div className="mb-8 border-b border-t border-gray-100 py-3 bg-gray-50/30 break-inside-avoid">
+          <div className="mb-4 border-b border-t border-gray-100 py-2 bg-gray-50/30 break-inside-avoid">
              <p className="text-sm text-gray-700">Total in words: <span className="font-bold text-gray-900 capitalize italic">{numberToWords(Math.round(totals.finalTotal))}</span></p>
           </div>
 
           {/* Lower Section Grid - Optimized Layout */}
-          <div className="grid grid-cols-2 gap-12 mb-8 items-start break-inside-avoid">
+          <div className="grid grid-cols-2 gap-8 mb-4 items-start break-inside-avoid">
               {/* Left Column: Bank Details & Terms */}
-              <div className="space-y-8">
+              <div className="space-y-4">
                   {/* Bank Details */}
                   {document.showBankDetails && (
                     <div className="bg-gray-50 p-4 rounded border border-gray-100">
@@ -920,7 +920,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
 
               {/* Right Column: Calculations */}
               <div className="flex flex-col">
-                   <div className="space-y-3 text-sm border-b border-gray-200 pb-4">
+                   <div className="space-y-2 text-sm border-b border-gray-200 pb-2">
                       <div className="flex justify-between text-gray-600">
                           <span>Taxable Amount</span>
                           <span className="font-medium">₹{totals.taxable.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
@@ -964,20 +964,20 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                       )}
                    </div>
 
-                   <div className="flex justify-between items-center py-4 bg-[#f8f5ff] -mx-4 px-4 mt-2 rounded">
+                   <div className="flex justify-between items-center py-2 bg-[#f8f5ff] -mx-4 px-4 mt-2 rounded">
                        <span className="text-[#5c2c90] font-bold text-lg">Total Amount</span>
                        <span className="text-[#5c2c90] font-bold text-xl">₹{totals.finalTotal.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
                    </div>
                    
-                   <div className="mt-12 text-right">
-                       <p className="font-bold text-gray-900 mb-8">{userProfile.companyName}</p>
+                   <div className="mt-8 text-right">
+                       <p className="font-bold text-gray-900 mb-6">{userProfile.companyName}</p>
                        <p className="text-xs text-gray-400 font-medium uppercase tracking-wider border-t border-gray-200 inline-block pt-2 px-8">Authorized Signatory</p>
                    </div>
               </div>
           </div>
 
           {/* Footer Branding */}
-          <div className="mt-auto pt-8 pb-4 text-center break-inside-avoid">
+          <div className="mt-auto pt-4 pb-2 text-center break-inside-avoid">
              <p className="text-xs text-gray-500 mb-2">This is an electronically generated document, no signature is required.</p>
              <div className="text-[10px] text-gray-400 flex items-center justify-center gap-1">
                 Powered by <span className="font-bold text-[#5c2c90]">BOS-Cloud</span>
