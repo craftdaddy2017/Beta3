@@ -147,6 +147,25 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
     }));
   };
 
+  const duplicateItem = (id: string) => {
+    setDocument((prev: any) => {
+        const index = prev.items.findIndex((i: LineItem) => i.id === id);
+        if (index === -1) return prev;
+        
+        const itemToClone = prev.items[index];
+        // Create deep copy with new ID
+        const newItem = { 
+            ...itemToClone, 
+            id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}` 
+        };
+        
+        const newItems = [...prev.items];
+        newItems.splice(index + 1, 0, newItem);
+        
+        return { ...prev, items: newItems };
+    });
+  };
+
   const removeItem = (id: string) => {
     if (document.items.length <= 1) return;
     setDocument((prev: any) => ({ ...prev, items: prev.items.filter((i: LineItem) => i.id !== id) }));
@@ -237,8 +256,8 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
     }
   };
 
-  // Adjusted grid columns to give Rate more space (80px) and added 30px action column
-  const GRID_COLS = "grid-cols-[20px_minmax(0,2fr)_minmax(60px,0.5fr)_minmax(55px,0.4fr)_minmax(55px,0.4fr)_minmax(80px,0.5fr)_minmax(90px,0.6fr)_minmax(70px,0.5fr)_minmax(70px,0.5fr)_minmax(90px,0.6fr)_30px]";
+  // Adjusted grid columns to give Rate more space (80px) and added 60px action column (increased from 30px)
+  const GRID_COLS = "grid-cols-[20px_minmax(0,2fr)_minmax(60px,0.5fr)_minmax(55px,0.4fr)_minmax(55px,0.4fr)_minmax(80px,0.5fr)_minmax(90px,0.6fr)_minmax(70px,0.5fr)_minmax(70px,0.5fr)_minmax(90px,0.6fr)_60px]";
 
   return (
     <div className="min-h-screen bg-gray-50 pb-32 relative font-sans text-sm text-gray-700">
@@ -551,7 +570,14 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                               <div className="pt-1 text-left text-gray-500">₹{calc.cgst.toLocaleString('en-IN', {minimumFractionDigits: 2})}</div>
                               <div className="pt-1 text-left text-gray-500">₹{calc.sgst.toLocaleString('en-IN', {minimumFractionDigits: 2})}</div>
                               <div className="pt-1 text-left font-bold text-gray-900">₹{calc.total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</div>
-                              <div className="pt-1 flex justify-center">
+                              <div className="pt-1 flex justify-center gap-1">
+                                <button 
+                                    onClick={() => duplicateItem(item.id)}
+                                    className="text-gray-400 hover:text-indigo-600 transition p-1"
+                                    title="Duplicate Item"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                                </button>
                                 <button 
                                     onClick={() => removeItem(item.id)} 
                                     className="text-gray-400 hover:text-red-500 transition p-1"
