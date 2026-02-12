@@ -831,7 +831,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                   {document.items.map((item: LineItem, idx: number) => {
                       const calc = calculateLineItem(item, !!isInterState);
                       return (
-                          <tr key={item.id} className="border-b border-gray-100">
+                          <tr key={item.id} className="border-b border-gray-100 break-inside-avoid page-break-inside-avoid">
                               <td className="py-2 px-3">
                                   <div className="font-bold text-gray-800">{item.description}</div>
                               </td>
@@ -847,12 +847,12 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
           </table>
 
           {/* Total in Words - Full Width Strip */}
-          <div className="mb-8 border-b border-t border-gray-100 py-3 bg-gray-50/30">
+          <div className="mb-8 border-b border-t border-gray-100 py-3 bg-gray-50/30 break-inside-avoid">
              <p className="text-sm text-gray-700">Total in words: <span className="font-bold text-gray-900 capitalize italic">{numberToWords(Math.round(totals.finalTotal))}</span></p>
           </div>
 
           {/* Lower Section Grid - Optimized Layout */}
-          <div className="grid grid-cols-2 gap-12 mb-8 items-start">
+          <div className="grid grid-cols-2 gap-12 mb-8 items-start break-inside-avoid">
               {/* Left Column: Bank Details & Terms */}
               <div className="space-y-8">
                   {/* Bank Details */}
@@ -951,7 +951,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
           </div>
 
           {/* Footer Branding */}
-          <div className="mt-auto pt-8 pb-4 text-center">
+          <div className="mt-auto pt-8 pb-4 text-center break-inside-avoid">
              <p className="text-xs text-gray-500 mb-2">This is an electronically generated document, no signature is required.</p>
              <div className="text-[10px] text-gray-400 flex items-center justify-center gap-1">
                 Powered by <span className="font-bold text-[#5c2c90]">BOS-Cloud</span>
@@ -963,56 +963,51 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
         @media print {
             @page { margin: 10mm; size: A4; }
             
-            /* RESET EVERYTHING */
             html, body {
-                height: initial !important;
-                overflow: initial !important;
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-                background: white;
+                height: auto !important;
+                min-height: 100% !important;
+                overflow: visible !important;
+                background: white !important;
             }
 
-            /* Hide the main app UI elements explicitly */
-            nav, aside, header, .sidebar, .no-print, .sticky, button {
+            /* Hide app shell */
+            nav, aside, header, .no-print, .print\\:hidden {
                 display: none !important;
             }
 
-            /* Hide everything by default to clear the canvas */
-            body > * {
-                visibility: hidden;
-            }
-
-            /* Make sure the root and app wrappers don't clip the content */
-            #root, #root > div {
+            /* Reset layout containers to allow flow */
+            #root, .flex, .h-screen, .min-h-screen, .flex-1, .relative {
+                display: block !important;
                 height: auto !important;
                 overflow: visible !important;
                 position: static !important;
             }
 
-            /* Style the specific printable content */
+            /* Print View Display */
             #print-view {
-                visibility: visible !important;
-                position: absolute !important;
-                left: 0 !important;
-                top: 0 !important;
-                width: 100% !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                background-color: white !important;
-                z-index: 9999 !important;
                 display: block !important;
-            }
-
-            /* Make children visible */
-            #print-view * {
-                visibility: visible !important;
+                width: 100% !important;
+                height: auto !important;
+                position: static !important;
             }
             
-            /* Typography adjustments for print */
+            /* Pagination control */
+            table { width: 100% !important; }
+            thead { display: table-header-group !important; }
+            tbody { display: table-row-group !important; }
+            tr { break-inside: avoid !important; page-break-inside: avoid !important; }
+            
+            .break-inside-avoid {
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
+            }
+            
+            /* Text adjustments */
             body {
                 font-size: 12px;
                 color: black;
-                font-family: sans-serif;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
             }
         }
       `}} />
